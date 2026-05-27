@@ -1,3 +1,5 @@
+"use client";
+
 import { useState, useEffect, useCallback, useRef } from "react";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 import {
@@ -5,15 +7,10 @@ import {
   ChevronDown, ChevronUp, User, Zap, BarChart2, Calendar
 } from "lucide-react";
 
-// ─── Supabase client (swap in real keys to activate) ────────────────────────
-// import { createClient } from "@supabase/supabase-js";
-// const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
-// ─── Seed data ───────────────────────────────────────────────────────────────
 const SEED_EXERCISES = {
-  push: ["Bench Press", "Overhead Press", "Incline Press", "Tricep Dips"],
-  pull: ["Pull-ups", "Rows", "Lat Pulldown", "Face Pulls"],
-  legs: ["Squats", "Deadlifts", "Leg Press", "Lunges"],
+  push: ["לחיצת חזה", "לחיצת כתפיים", "לחיצת חזה בשיפוע", "מקבילים"],
+  pull: ["מתח", "חתירה", "פולי עליון", "פייס פולס"],
+  legs: ["סקוואט", "דדליפט", "לחיצת רגליים", "לאנג'ים"],
 };
 
 function genId() {
@@ -38,7 +35,6 @@ function seedExercises(profileId) {
   return exercises;
 }
 
-// ─── Local "DB" (replace calls with supabase.from(...) for production) ───────
 function useLocalDB() {
   const [profiles, setProfiles] = useState(() => {
     try { return JSON.parse(localStorage.getItem("wt_profiles") || "[]"); } catch { return []; }
@@ -91,23 +87,29 @@ function useLocalDB() {
   return { profiles, exercises, addProfile, updateExerciseWeight, addExercise };
 }
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
 function fmt(ts) {
   if (!ts) return "";
   const d = new Date(ts);
-  return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  return d.toLocaleDateString("he-IL", { month: "short", day: "numeric" });
 }
 
 function fmtRelative(ts) {
-  if (!ts) return "never";
+  if (!ts) return "אף פעם";
   const diff = Date.now() - ts;
-  if (diff < 60000) return "just now";
-  if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`;
-  if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`;
-  return `${Math.floor(diff / 86400000)}d ago`;
+  if (diff < 60000) return "ממש עכשיו";
+  if (diff < 3600000) return `לפני ${Math.floor(diff / 60000)} דק׳`;
+  if (diff < 86400000) return `לפני ${Math.floor(diff / 3600000)} שעות`;
+  return `לפני ${Math.floor(diff / 86400000)} ימים`;
 }
 
-const TIMEFRAMES = ["1m", "3m", "6m", "1y", "All"];
+const TIMEFRAMES = [
+  { key: "1m", label: "חודש" },
+  { key: "3m", label: "3 חודשים" },
+  { key: "6m", label: "חצי שנה" },
+  { key: "1y", label: "שנה" },
+  { key: "All", label: "הכל" }
+];
+
 function filterByTimeframe(sessions, tf) {
   if (tf === "All") return sessions;
   const months = { "1m": 1, "3m": 3, "6m": 6, "1y": 12 }[tf];
@@ -127,24 +129,22 @@ function injectGaps(sessions) {
   return pts;
 }
 
-// ─── Components ──────────────────────────────────────────────────────────────
-
 function CategoryBadge({ cat }) {
   const cfg = {
-    push: { bg: "#ff6b35", label: "PUSH" },
-    pull: { bg: "#4ecdc4", label: "PULL" },
-    legs: { bg: "#a78bfa", label: "LEGS" },
+    push: { bg: "#ff6b35", label: "דחיפה (PUSH)" },
+    pull: { bg: "#4ecdc4", label: "משיכה (PULL)" },
+    legs: { bg: "#a78bfa", label: "רגליים (LEGS)" },
   }[cat] || { bg: "#888", label: cat };
   return (
     <span style={{
-      background: cfg.bg, color: "#fff", fontSize: 10, fontWeight: 800,
-      letterSpacing: 1.5, padding: "2px 8px", borderRadius: 4,
+      background: cfg.bg, color: "#fff", fontSize: 11, fontWeight: 800,
+      padding: "2px 8px", borderRadius: 4,
     }}>{cfg.label}</span>
   );
 }
 
 function ProfileCard({ profile, onClick, rank }) {
-  const initials = profile.name.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase();
+  const initials = profile.name.slice(0, 2);
   const colors = ["#ff6b35", "#4ecdc4", "#a78bfa", "#f7dc6f", "#82e0aa", "#85c1e9", "#f1948a", "#bb8fce", "#f0b27a", "#76d7c4"];
   const color = colors[rank % colors.length];
   return (
@@ -152,12 +152,9 @@ function ProfileCard({ profile, onClick, rank }) {
       display: "flex", alignItems: "center", gap: 14,
       width: "100%", padding: "14px 16px",
       background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)",
-      borderRadius: 16, cursor: "pointer", textAlign: "left",
+      borderRadius: 16, cursor: "pointer", textAlign: "right",
       transition: "all 0.15s", WebkitTapHighlightColor: "transparent",
-    }}
-      onTouchStart={e => e.currentTarget.style.background = "rgba(255,255,255,0.08)"}
-      onTouchEnd={e => e.currentTarget.style.background = "rgba(255,255,255,0.04)"}
-    >
+    }}>
       <div style={{
         width: 46, height: 46, borderRadius: "50%",
         background: color + "22", border: `2px solid ${color}`,
@@ -166,10 +163,10 @@ function ProfileCard({ profile, onClick, rank }) {
       }}>{initials}</div>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ color: "#f0ede8", fontWeight: 700, fontSize: 17, marginBottom: 2 }}>{profile.name}</div>
-        <div style={{ color: "#888", fontSize: 13 }}>Active {fmtRelative(profile.updated_at)}</div>
+        <div style={{ color: "#888", fontSize: 13 }}>פעיל/ה {fmtRelative(profile.updated_at)}</div>
       </div>
       {rank === 0 && (
-        <span style={{ fontSize: 10, fontWeight: 800, color: "#ff6b35", letterSpacing: 1, opacity: 0.8 }}>MOST ACTIVE</span>
+        <span style={{ fontSize: 11, fontWeight: 800, color: "#ff6b35", opacity: 0.8 }}>הכי פעיל/ה</span>
       )}
     </button>
   );
@@ -182,24 +179,21 @@ function ExerciseRow({ exercise, onClick }) {
       display: "flex", alignItems: "center", gap: 12,
       width: "100%", padding: "14px 16px",
       background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)",
-      borderRadius: 14, cursor: "pointer", textAlign: "left",
+      borderRadius: 14, cursor: "pointer", textAlign: "right",
       transition: "background 0.12s", WebkitTapHighlightColor: "transparent",
-    }}
-      onTouchStart={e => e.currentTarget.style.background = "rgba(255,255,255,0.07)"}
-      onTouchEnd={e => e.currentTarget.style.background = "rgba(255,255,255,0.03)"}
-    >
+    }}>
       <Dumbbell size={20} color="#555" style={{ flexShrink: 0 }} />
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ color: "#f0ede8", fontWeight: 600, fontSize: 16 }}>{exercise.name}</div>
         {last && (
           <div style={{ color: "#777", fontSize: 13, marginTop: 2 }}>
-            Last: <span style={{ color: "#ff6b35", fontWeight: 700 }}>{last.weight} kg</span>
-            <span style={{ marginLeft: 6 }}>· {fmt(last.date)}</span>
+            אחרון: <span style={{ color: "#ff6b35", fontWeight: 700 }}>{last.weight} ק״ג</span>
+            <span style={{ marginRight: 6 }}>· {fmt(last.date)}</span>
           </div>
         )}
-        {!last && <div style={{ color: "#555", fontSize: 13, marginTop: 2 }}>No data yet</div>}
+        {!last && <div style={{ color: "#555", fontSize: 13, marginTop: 2 }}>אין מידע עדיין</div>}
       </div>
-      <ChevronDown size={16} color="#444" style={{ transform: "rotate(-90deg)" }} />
+      <ChevronLeft size={16} color="#444" />
     </button>
   );
 }
@@ -210,25 +204,25 @@ function Chart({ sessions, name }) {
   const pts = injectGaps(filtered);
 
   return (
-    <div style={{ marginTop: 12 }}>
-      <div style={{ display: "flex", gap: 6, marginBottom: 12 }}>
+    <div style={{ marginTop: 12 }} dir="ltr">
+      <div style={{ display: "flex", gap: 6, marginBottom: 12 }} dir="rtl">
         {TIMEFRAMES.map(t => (
-          <button key={t} onClick={() => setTf(t)} style={{
+          <button key={t.key} onClick={() => setTf(t.key)} style={{
             flex: 1, padding: "6px 0", borderRadius: 8, border: "none",
-            background: tf === t ? "#ff6b35" : "rgba(255,255,255,0.06)",
-            color: tf === t ? "#fff" : "#777", fontWeight: 700, fontSize: 12,
+            background: tf === t.key ? "#ff6b35" : "rgba(255,255,255,0.06)",
+            color: tf === t.key ? "#fff" : "#777", fontWeight: 700, fontSize: 12,
             cursor: "pointer", WebkitTapHighlightColor: "transparent",
-          }}>{t}</button>
+          }}>{t.label}</button>
         ))}
       </div>
       {pts.length < 2 ? (
         <div style={{
           height: 160, display: "flex", alignItems: "center", justifyContent: "center",
           color: "#444", fontSize: 14,
-        }}>
+        }} dir="rtl">
           <div style={{ textAlign: "center" }}>
             <BarChart2 size={32} color="#333" style={{ marginBottom: 8 }} />
-            <div>Log workouts to see your progress</div>
+            <div>רשום אימונים כדי לראות את גרף ההתקדמות שלך</div>
           </div>
         </div>
       ) : (
@@ -237,7 +231,7 @@ function Chart({ sessions, name }) {
             <XAxis dataKey="label" tick={{ fill: "#555", fontSize: 10 }} tickLine={false} axisLine={false} />
             <YAxis tick={{ fill: "#555", fontSize: 10 }} tickLine={false} axisLine={false} />
             <Tooltip
-              contentStyle={{ background: "#1a1a1a", border: "1px solid #333", borderRadius: 8, fontSize: 12 }}
+              contentStyle={{ background: "#1a1a1a", border: "1px solid #333", borderRadius: 8, fontSize: 12, textAlign: "right" }}
               labelStyle={{ color: "#888" }}
               itemStyle={{ color: "#ff6b35" }}
             />
@@ -280,7 +274,7 @@ function ExerciseDetail({ exercise, onSave, onBack }) {
         background: "none", border: "none", color: "#ff6b35",
         fontSize: 15, fontWeight: 600, cursor: "pointer", padding: 0, marginBottom: 20,
       }}>
-        <ChevronLeft size={18} /> Back
+        <ChevronLeft size={18} style={{ transform: "rotate(180deg)" }} /> חזרה
       </button>
 
       <div style={{ marginBottom: 24 }}>
@@ -292,16 +286,16 @@ function ExerciseDetail({ exercise, onSave, onBack }) {
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 24 }}>
         {[
-          { label: "Last lift", value: last ? `${last.weight} kg` : "—", sub: last ? fmt(last.date) : "" },
-          { label: "Personal best", value: best ? `${best} kg` : "—", sub: "" },
-          { label: "Total sessions", value: exercise.sessions.length, sub: "" },
-          { label: "This month", value: exercise.sessions.filter(s => s.date > Date.now() - 30 * 86400000).length + " sessions", sub: "" },
+          { label: "סט אחרון", value: last ? `${last.weight} ק״ג` : "—", sub: last ? fmt(last.date) : "" },
+          { label: "שיא אישי", value: best ? `${best} ק״ג` : "—", sub: "" },
+          { label: "סה״כ סטים", value: exercise.sessions.length, sub: "" },
+          { label: "החודש", value: exercise.sessions.filter(s => s.date > Date.now() - 30 * 86400000).length + " סטים", sub: "" },
         ].map(c => (
           <div key={c.label} style={{
             background: "rgba(255,255,255,0.04)", borderRadius: 12,
             padding: "12px 14px", border: "1px solid rgba(255,255,255,0.07)",
           }}>
-            <div style={{ color: "#666", fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 4 }}>{c.label}</div>
+            <div style={{ color: "#666", fontSize: 11, fontWeight: 600, textTransform: "uppercase", marginBottom: 4 }}>{c.label}</div>
             <div style={{ color: "#f0ede8", fontSize: 20, fontWeight: 800 }}>{c.value}</div>
             {c.sub && <div style={{ color: "#555", fontSize: 12, marginTop: 2 }}>{c.sub}</div>}
           </div>
@@ -313,7 +307,7 @@ function ExerciseDetail({ exercise, onSave, onBack }) {
         borderRadius: 16, padding: 20, marginBottom: 20,
       }}>
         <div style={{ color: "#ff6b35", fontSize: 12, fontWeight: 700, letterSpacing: 1, textTransform: "uppercase", marginBottom: 12 }}>
-          Log Weight
+          עדכון משקל
         </div>
         <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
           <input
@@ -328,7 +322,7 @@ function ExerciseDetail({ exercise, onSave, onBack }) {
               outline: "none", padding: "0 12px",
             }}
           />
-          <span style={{ color: "#777", fontSize: 16, fontWeight: 600 }}>kg</span>
+          <span style={{ color: "#777", fontSize: 16, fontWeight: 600 }}>ק״ג</span>
           <button onClick={handleSave} style={{
             width: 52, height: 52, borderRadius: 12, border: "none",
             background: saved ? "#22c55e" : "#ff6b35",
@@ -340,7 +334,7 @@ function ExerciseDetail({ exercise, onSave, onBack }) {
         </div>
         {last && (
           <div style={{ color: "#666", fontSize: 12, marginTop: 10, textAlign: "center" }}>
-            Previous: {last.weight} kg on {fmt(last.date)}
+            קודם: {last.weight} ק״ג ב-{fmt(last.date)}
           </div>
         )}
       </div>
@@ -352,7 +346,7 @@ function ExerciseDetail({ exercise, onSave, onBack }) {
         fontSize: 14, fontWeight: 600,
       }}>
         <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <TrendingUp size={16} color="#ff6b35" /> Progress Chart
+          <TrendingUp size={16} color="#ff6b35" /> גרף התקדמות
         </span>
         {showChart ? <ChevronUp size={16} color="#555" /> : <ChevronDown size={16} color="#555" />}
       </button>
@@ -363,15 +357,14 @@ function ExerciseDetail({ exercise, onSave, onBack }) {
 }
 
 const CATS = [
-  { key: "push", label: "PUSH", icon: "💪", desc: "Chest · Shoulders · Triceps", color: "#ff6b35" },
-  { key: "pull", label: "PULL", icon: "🔄", desc: "Back · Biceps · Rear delts", color: "#4ecdc4" },
-  { key: "legs", label: "LEGS", icon: "🦵", desc: "Quads · Hamstrings · Glutes", color: "#a78bfa" },
+  { key: "push", label: "דחיפה", icon: "💪", desc: "חזה · כתפיים · יד אחורית", color: "#ff6b35" },
+  { key: "pull", label: "משיכה", icon: "🔄", desc: "גב · יד קדמית · כתף אחורית", color: "#4ecdc4" },
+  { key: "legs", label: "רגליים", icon: "🦵", desc: "ארבע ראשי · המסטרינג · ישבן", color: "#a78bfa" },
 ];
 
-// ─── Main App ────────────────────────────────────────────────────────────────
 export default function WorkoutTracker() {
   const { profiles, exercises, addProfile, updateExerciseWeight, addExercise } = useLocalDB();
-  const [view, setView] = useState("profiles"); // profiles | dashboard | category | exercise
+  const [view, setView] = useState("profiles"); 
   const [selectedProfile, setSelectedProfile] = useState(null);
   const [selectedCat, setSelectedCat] = useState(null);
   const [selectedExercise, setSelectedExercise] = useState(null);
@@ -398,9 +391,7 @@ export default function WorkoutTracker() {
   }
 
   function handleSaveWeight(exId, w) {
-    // Optimistic update via local state + supabase call (in production)
     updateExerciseWeight(exId, w);
-    // production: await supabase.from("exercises").update({...}).eq("id", exId)
     const updatedEx = { ...selectedExercise, sessions: [...selectedExercise.sessions, { weight: w, date: Date.now() }] };
     setSelectedExercise(updatedEx);
   }
@@ -414,11 +405,10 @@ export default function WorkoutTracker() {
 
   const BG = {
     background: "linear-gradient(135deg, #0f0f0f 0%, #1a1a1a 100%)",
-    minHeight: "100vh", fontFamily: "'Inter', -apple-system, sans-serif",
+    minHeight: "100vh", fontFamily: "system-ui, -apple-system, sans-serif",
     color: "#f0ede8",
   };
 
-  // ── Exercise detail ──────────────────────────────────────────────────────
   if (view === "exercise" && selectedExercise) {
     const live = exercises.find(e => e.id === selectedExercise.id) || selectedExercise;
     return (
@@ -432,7 +422,6 @@ export default function WorkoutTracker() {
     );
   }
 
-  // ── Category view ────────────────────────────────────────────────────────
   if (view === "category" && selectedCat) {
     const catInfo = CATS.find(c => c.key === selectedCat);
     return (
@@ -442,12 +431,12 @@ export default function WorkoutTracker() {
           background: "none", border: "none", color: catInfo.color,
           fontSize: 15, fontWeight: 600, cursor: "pointer", padding: 0, marginBottom: 20,
         }}>
-          <ChevronLeft size={18} /> {selectedProfile?.name}
+          <ChevronLeft size={18} style={{ transform: "rotate(180deg)" }} /> {selectedProfile?.name}
         </button>
 
         <div style={{ marginBottom: 24 }}>
           <div style={{ fontSize: 36, marginBottom: 4 }}>{catInfo.icon}</div>
-          <h1 style={{ color: catInfo.color, fontSize: 32, fontWeight: 900, margin: 0, letterSpacing: -1 }}>{catInfo.label}</h1>
+          <h1 style={{ color: catInfo.color, fontSize: 32, fontWeight: 900, margin: 0 }}>{catInfo.label}</h1>
           <div style={{ color: "#555", fontSize: 14, marginTop: 4 }}>{catInfo.desc}</div>
         </div>
 
@@ -462,17 +451,18 @@ export default function WorkoutTracker() {
             background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)",
             borderRadius: 14, padding: 16,
           }}>
-            <div style={{ color: "#888", fontSize: 12, fontWeight: 600, marginBottom: 10, textTransform: "uppercase", letterSpacing: 0.8 }}>Exercise name</div>
+            <div style={{ color: "#888", fontSize: 12, fontWeight: 600, marginBottom: 10 }}>שם התרגיל</div>
             <div style={{ display: "flex", gap: 8 }}>
               <input
                 autoFocus
                 value={newExerciseName} onChange={e => setNewExerciseName(e.target.value)}
                 onKeyDown={e => e.key === "Enter" && handleAddExercise()}
-                placeholder="e.g. Cable Fly"
+                placeholder="לדוגמה: פרפר כבלים"
                 style={{
                   flex: 1, height: 44, background: "rgba(0,0,0,0.3)",
                   border: "1px solid rgba(255,255,255,0.15)", borderRadius: 10,
                   color: "#f0ede8", fontSize: 15, padding: "0 12px", outline: "none",
+                  textAlign: "right"
                 }}
               />
               <button onClick={handleAddExercise} style={{
@@ -496,14 +486,13 @@ export default function WorkoutTracker() {
             display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
             cursor: "pointer",
           }}>
-            <Plus size={18} /> Add Exercise
+            <Plus size={18} /> הוספת תרגיל
           </button>
         )}
       </div>
     );
   }
 
-  // ── Dashboard ────────────────────────────────────────────────────────────
   if (view === "dashboard" && selectedProfile) {
     return (
       <div style={{ ...BG, padding: "52px 20px 32px" }}>
@@ -512,7 +501,7 @@ export default function WorkoutTracker() {
           background: "none", border: "none", color: "#ff6b35",
           fontSize: 15, fontWeight: 600, cursor: "pointer", padding: 0, marginBottom: 20,
         }}>
-          <ChevronLeft size={18} /> All Profiles
+          <ChevronLeft size={18} style={{ transform: "rotate(180deg)" }} /> כל הפרופילים
         </button>
 
         <div style={{ marginBottom: 32 }}>
@@ -523,11 +512,11 @@ export default function WorkoutTracker() {
               display: "flex", alignItems: "center", justifyContent: "center",
               fontWeight: 800, fontSize: 14, color: "#ff6b35",
             }}>
-              {selectedProfile.name.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase()}
+              {selectedProfile.name.slice(0, 2)}
             </div>
             <div>
               <h1 style={{ color: "#f0ede8", fontSize: 22, fontWeight: 800, margin: 0 }}>{selectedProfile.name}</h1>
-              <div style={{ color: "#555", fontSize: 13 }}>Select a workout</div>
+              <div style={{ color: "#555", fontSize: 13 }}>בחר סוג אימון</div>
             </div>
           </div>
         </div>
@@ -544,27 +533,25 @@ export default function WorkoutTracker() {
                   background: `linear-gradient(135deg, ${cat.color}15 0%, ${cat.color}05 100%)`,
                   border: `1px solid ${cat.color}30`,
                   borderRadius: 20, padding: "20px 20px",
-                  cursor: "pointer", textAlign: "left",
+                  cursor: "pointer", textAlign: "right",
                   WebkitTapHighlightColor: "transparent",
                   transition: "transform 0.1s",
                 }}
-                onTouchStart={e => e.currentTarget.style.transform = "scale(0.97)"}
-                onTouchEnd={e => e.currentTarget.style.transform = "scale(1)"}
               >
                 <div style={{ flex: 1 }}>
                   <div style={{ fontSize: 30, marginBottom: 6 }}>{cat.icon}</div>
-                  <div style={{ color: cat.color, fontSize: 28, fontWeight: 900, letterSpacing: -1 }}>{cat.label}</div>
+                  <div style={{ color: cat.color, fontSize: 28, fontWeight: 900 }}>{cat.label}</div>
                   <div style={{ color: "#666", fontSize: 13, marginTop: 4 }}>{cat.desc}</div>
                   <div style={{ display: "flex", gap: 12, marginTop: 10 }}>
                     <span style={{ color: "#555", fontSize: 12 }}>
-                      <span style={{ color: cat.color, fontWeight: 700 }}>{exs.length}</span> exercises
+                      <span style={{ color: cat.color, fontWeight: 700 }}>{exs.length}</span> תרגילים
                     </span>
                     <span style={{ color: "#555", fontSize: 12 }}>
-                      <span style={{ color: cat.color, fontWeight: 700 }}>{withData.length}</span> logged
+                      <span style={{ color: cat.color, fontWeight: 700 }}>{withData.length}</span> רשומים
                     </span>
                     {lastUpdated > 0 && (
-                      <span style={{ color: "#444", fontSize: 12 }}>
-                        <Calendar size={10} style={{ marginRight: 3 }} />{fmtRelative(lastUpdated)}
+                      <span style={{ color: "#444", fontSize: 12, display: "flex", alignItems: "center", gap: 3 }}>
+                        <Calendar size={10} /> {fmtRelative(lastUpdated)}
                       </span>
                     )}
                   </div>
@@ -578,18 +565,15 @@ export default function WorkoutTracker() {
     );
   }
 
-  // ── Profiles (landing) ───────────────────────────────────────────────────
   return (
     <div style={{ ...BG, padding: "52px 20px 32px" }}>
       <div style={{ marginBottom: 32 }}>
-        <div style={{
-          display: "flex", alignItems: "center", gap: 8, marginBottom: 6,
-        }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
           <Dumbbell size={24} color="#ff6b35" />
-          <span style={{ color: "#ff6b35", fontSize: 12, fontWeight: 800, letterSpacing: 2, textTransform: "uppercase" }}>Iron Log</span>
+          <span style={{ color: "#ff6b35", fontSize: 12, fontWeight: 800, letterSpacing: 2 }}>IRON LOG</span>
         </div>
-        <h1 style={{ color: "#f0ede8", fontSize: 34, fontWeight: 900, margin: 0, letterSpacing: -1.5 }}>
-          Who's<br />lifting?
+        <h1 style={{ color: "#f0ede8", fontSize: 34, fontWeight: 900, margin: 0, lineHeight: 1.2 }}>
+          מי מתאמן<br />היום?
         </h1>
       </div>
 
@@ -605,17 +589,18 @@ export default function WorkoutTracker() {
             background: "rgba(255,107,53,0.06)", border: "1px solid rgba(255,107,53,0.2)",
             borderRadius: 16, padding: 16,
           }}>
-            <div style={{ color: "#888", fontSize: 12, fontWeight: 600, marginBottom: 10, textTransform: "uppercase", letterSpacing: 0.8 }}>Your name</div>
+            <div style={{ color: "#888", fontSize: 12, fontWeight: 600, marginBottom: 10 }}>שם הפרופיל</div>
             <div style={{ display: "flex", gap: 8 }}>
               <input
                 autoFocus
                 value={newProfileName} onChange={e => setNewProfileName(e.target.value)}
                 onKeyDown={e => e.key === "Enter" && handleAddProfile()}
-                placeholder="e.g. Alex"
+                placeholder="לדוגמה: אלכס"
                 style={{
                   flex: 1, height: 48, background: "rgba(0,0,0,0.3)",
                   border: "1px solid rgba(255,107,53,0.3)", borderRadius: 10,
                   color: "#f0ede8", fontSize: 16, padding: "0 14px", outline: "none",
+                  textAlign: "right"
                 }}
               />
               <button onClick={handleAddProfile} style={{
@@ -639,7 +624,7 @@ export default function WorkoutTracker() {
             display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
             cursor: "pointer",
           }}>
-            <Plus size={20} /> Add Profile {profiles.length > 0 && `(${10 - profiles.length} left)`}
+            <Plus size={20} /> הוספת פרופיל {profiles.length > 0 && `(נשארו עוד ${10 - profiles.length})`}
           </button>
         )
       )}
@@ -647,19 +632,16 @@ export default function WorkoutTracker() {
       {profiles.length === 0 && (
         <div style={{ textAlign: "center", marginTop: 40, color: "#444" }}>
           <User size={40} color="#333" style={{ margin: "0 auto 12px" }} />
-          <div style={{ fontSize: 15 }}>Add your first profile to get started</div>
+          <div style={{ fontSize: 15 }}>יש להוסיף פרופיל ראשון כדי להתחיל</div>
         </div>
       )}
 
       <div style={{ marginTop: 40, padding: "16px", background: "rgba(255,255,255,0.02)", borderRadius: 12, border: "1px solid rgba(255,255,255,0.05)" }}>
-        <div style={{ color: "#444", fontSize: 11, fontWeight: 700, letterSpacing: 1, textTransform: "uppercase", marginBottom: 10 }}>
-          Supabase Setup
+        <div style={{ color: "#444", fontSize: 11, fontWeight: 700, textTransform: "uppercase", marginBottom: 10 }}>
+          חיבור ל-Supabase
         </div>
         <div style={{ color: "#555", fontSize: 12, lineHeight: 1.6 }}>
-          This app persists data locally via <code style={{ color: "#ff6b35", background: "rgba(255,107,53,0.1)", padding: "1px 5px", borderRadius: 4 }}>localStorage</code> and is ready for Supabase.
-          Replace the local DB layer with{" "}
-          <code style={{ color: "#4ecdc4", background: "rgba(78,205,196,0.1)", padding: "1px 5px", borderRadius: 4 }}>supabase.from()</code> calls —
-          schema SQL in the README below.
+          האפליקציה שומרת נתונים מקומית דרך <code dir="ltr" style={{ color: "#ff6b35", background: "rgba(255,107,53,0.1)", padding: "1px 5px", borderRadius: 4 }}>localStorage</code> ומוכנה לחיבור סנכרון לענן של Supabase.
         </div>
       </div>
     </div>
