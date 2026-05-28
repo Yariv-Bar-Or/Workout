@@ -1,10 +1,10 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, ScatterChart, Scatter } from "recharts";
 import {
   ChevronLeft, Plus, Dumbbell, TrendingUp, X, Check,
-  ChevronDown, ChevronUp, User, Zap, BarChart2, Calendar
+  ChevronDown, ChevronUp, User, Zap, BarChart2, Calendar, Trash2
 } from "lucide-react";
 
 const SEED_EXERCISES = {
@@ -61,13 +61,22 @@ function useLocalDB() {
     return profile;
   }, [profiles, exercises, persist]);
 
-  const updateExerciseWeight = useCallback((exerciseId, weight) => {
+  // CHANGE 4: deleteProfile
+  const deleteProfile = useCallback((profileId) => {
+    const np = profiles.filter(p => p.id !== profileId);
+    const ne = exercises.filter(e => e.profile_id !== profileId);
+    setProfiles(np); setExercises(ne);
+    persist(np, ne);
+  }, [profiles, exercises, persist]);
+
+  // CHANGE 1: accept reps param
+  const updateExerciseWeight = useCallback((exerciseId, weight, reps) => {
     const now = Date.now();
     let profileId = null;
     const ne = exercises.map(e => {
       if (e.id !== exerciseId) return e;
       profileId = e.profile_id;
-      return { ...e, sessions: [...e.sessions, { weight, date: now }], updated_at: now };
+      return { ...e, sessions: [...e.sessions, { weight, reps: reps || null, date: now }], updated_at: now };
     });
     const np = profiles.map(p =>
       p.id === profileId ? { ...p, updated_at: now } : p
@@ -84,7 +93,7 @@ function useLocalDB() {
     return ex;
   }, [exercises, profiles, persist]);
 
-  return { profiles, exercises, addProfile, updateExerciseWeight, addExercise };
+  return { profiles, exercises, addProfile, deleteProfile, updateExerciseWeight, addExercise };
 }
 
 function fmt(ts) {
@@ -117,16 +126,111 @@ function filterByTimeframe(sessions, tf) {
   return sessions.filter(s => s.date >= cutoff);
 }
 
-function injectGaps(sessions) {
-  const GAP = 7 * 86400000;
-  const pts = [];
-  for (let i = 0; i < sessions.length; i++) {
-    if (i > 0 && sessions[i].date - sessions[i - 1].date > GAP) {
-      pts.push({ date: sessions[i - 1].date + 1, weight: null, gap: true });
+// CHANGE 2 & 3: Chart with date grouping, trend line for first-of-day, dots for rest, reps in tooltip
+function Chart({ sessions, name }) {
+  const [tf, setTf] = useState("All");
+  const filtered = filterByTimeframe(sessions, tf);
+
+  // Group by day string
+  const dayKey = (ts) => new Date(ts).toLocaleDateString("he-IL");
+
+  // Build trend line data: first set per day only
+  const seenDays = new Set();
+  const trendData = [];
+  // Secondary dots: subsequent sets on same day
+  const extraDots = [];
+
+  filtered.forEach(s => {
+    const dk = dayKey(s.date);
+    const point = { date: s.date, weight: s.weight, reps: s.reps || null, label: fmt(s.date) };
+    if (!seenDays.has(dk)) {
+      seenDays.add(dk);
+      trendData.push(point);
+    } else {
+      extraDots.push(point);
     }
-    pts.push({ date: sessions[i].date, weight: sessions[i].weight, label: fmt(sessions[i].date) });
-  }
-  return pts;
+  });
+
+  // CHANGE 3: custom tooltip showing reps
+  const CustomTooltip = ({ active, payload }) => {
+    if (!active || !payload?.length) return null;
+    const d = payload[0].payload;
+    return (
+      <div style={{
+        background: "#1a1a1a", border: "1px solid #333", borderRadius: 8,
+        padding: "8px 12px", fontSize: 12, textAlign: "right",
+      }}>
+        <div style={{ color: "#888", marginBottom: 4 }}>{d.label}</div>
+        <div style={{ color: "#ff6b35", fontWeight: 700 }}>{d.weight} ק״ג</div>
+        {d.reps != null && (
+          <div style={{ color: "#aaa", marginTop: 2 }}>{d.reps} חזרות</div>
+        )}
+      </div>
+    );
+  };
+
+  const hasData = trendData.length >= 2;
+
+  return (
+    <div style={{ marginTop: 12 }} dir="ltr">
+      <div style={{ display: "flex", gap: 6, marginBottom: 12 }} dir="rtl">
+        {TIMEFRAMES.map(t => (
+          <button key={t.key} onClick={() => setTf(t.key)} style={{
+            flex: 1, padding: "6px 0", borderRadius: 8, border: "none",
+            background: tf === t.key ? "#ff6b35" : "rgba(255,255,255,0.06)",
+            color: tf === t.key ? "#fff" : "#777", fontWeight: 700, fontSize: 12,
+            cursor: "pointer", WebkitTapHighlightColor: "transparent",
+          }}>{t.label}</button>
+        ))}
+      </div>
+
+      {!hasData ? (
+        <div style={{
+          height: 160, display: "flex", alignItems: "center", justifyContent: "center",
+          color: "#444", fontSize: 14,
+        }} dir="rtl">
+          <div style={{ textAlign: "center" }}>
+            <BarChart2 size={32} color="#333" style={{ marginBottom: 8 }} />
+            <div>רשום אימונים כדי לראות את גרף ההתקדמות שלך</div>
+          </div>
+        </div>
+      ) : (
+        <div style={{ position: "relative" }}>
+          <ResponsiveContainer width="100%" height={160}>
+            <LineChart data={trendData} margin={{ top: 4, right: 4, left: -24, bottom: 0 }}>
+              <XAxis dataKey="label" tick={{ fill: "#555", fontSize: 10 }} tickLine={false} axisLine={false} />
+              <YAxis tick={{ fill: "#555", fontSize: 10 }} tickLine={false} axisLine={false} />
+              <Tooltip content={<CustomTooltip />} />
+              <Line
+                type="monotone" dataKey="weight" stroke="#ff6b35" strokeWidth={2.5}
+                dot={{ fill: "#ff6b35", r: 4, strokeWidth: 0 }}
+                connectNulls={false}
+                activeDot={{ r: 6, fill: "#ff6b35" }}
+              />
+            </LineChart>
+          </ResponsiveContainer>
+
+          {/* Extra dots for subsequent sets on same day */}
+          {extraDots.length > 0 && (
+            <ResponsiveContainer width="100%" height={160} style={{ position: "absolute", top: 0, left: 0, pointerEvents: "none" }}>
+              <ScatterChart margin={{ top: 4, right: 4, left: -24, bottom: 0 }}>
+                <XAxis dataKey="label" tick={false} tickLine={false} axisLine={false} />
+                <YAxis dataKey="weight" tick={false} tickLine={false} axisLine={false} domain={['auto', 'auto']} />
+                <Tooltip content={<CustomTooltip />} />
+                <Scatter
+                  data={extraDots}
+                  fill="transparent"
+                  stroke="#ff6b35"
+                  strokeWidth={1.5}
+                  r={4}
+                />
+              </ScatterChart>
+            </ResponsiveContainer>
+          )}
+        </div>
+      )}
+    </div>
+  );
 }
 
 function CategoryBadge({ cat }) {
@@ -143,32 +247,47 @@ function CategoryBadge({ cat }) {
   );
 }
 
-function ProfileCard({ profile, onClick, rank }) {
+// CHANGE 4: ProfileCard gets onDelete prop
+function ProfileCard({ profile, onClick, onDelete, rank }) {
   const initials = profile.name.slice(0, 2);
   const colors = ["#ff6b35", "#4ecdc4", "#a78bfa", "#f7dc6f", "#82e0aa", "#85c1e9", "#f1948a", "#bb8fce", "#f0b27a", "#76d7c4"];
   const color = colors[rank % colors.length];
   return (
-    <button onClick={onClick} style={{
-      display: "flex", alignItems: "center", gap: 14,
-      width: "100%", padding: "14px 16px",
-      background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)",
-      borderRadius: 16, cursor: "pointer", textAlign: "right",
-      transition: "all 0.15s", WebkitTapHighlightColor: "transparent",
-    }}>
-      <div style={{
-        width: 46, height: 46, borderRadius: "50%",
-        background: color + "22", border: `2px solid ${color}`,
-        display: "flex", alignItems: "center", justifyContent: "center",
-        fontWeight: 800, fontSize: 16, color, flexShrink: 0,
-      }}>{initials}</div>
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ color: "#f0ede8", fontWeight: 700, fontSize: 17, marginBottom: 2 }}>{profile.name}</div>
-        <div style={{ color: "#888", fontSize: 13 }}>פעיל/ה {fmtRelative(profile.updated_at)}</div>
-      </div>
-      {rank === 0 && (
-        <span style={{ fontSize: 11, fontWeight: 800, color: "#ff6b35", opacity: 0.8 }}>הכי פעיל/ה</span>
-      )}
-    </button>
+    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+      <button onClick={onClick} style={{
+        display: "flex", alignItems: "center", gap: 14,
+        flex: 1, padding: "14px 16px",
+        background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)",
+        borderRadius: 16, cursor: "pointer", textAlign: "right",
+        transition: "all 0.15s", WebkitTapHighlightColor: "transparent",
+      }}>
+        <div style={{
+          width: 46, height: 46, borderRadius: "50%",
+          background: color + "22", border: `2px solid ${color}`,
+          display: "flex", alignItems: "center", justifyContent: "center",
+          fontWeight: 800, fontSize: 16, color, flexShrink: 0,
+        }}>{initials}</div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ color: "#f0ede8", fontWeight: 700, fontSize: 17, marginBottom: 2 }}>{profile.name}</div>
+          <div style={{ color: "#888", fontSize: 13 }}>פעיל/ה {fmtRelative(profile.updated_at)}</div>
+        </div>
+        {rank === 0 && (
+          <span style={{ fontSize: 11, fontWeight: 800, color: "#ff6b35", opacity: 0.8 }}>הכי פעיל/ה</span>
+        )}
+      </button>
+      <button
+        onClick={(e) => { e.stopPropagation(); onDelete(); }}
+        style={{
+          width: 40, height: 40, borderRadius: 12, border: "1px solid rgba(255,80,80,0.25)",
+          background: "rgba(255,80,80,0.08)", color: "#e05555",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          cursor: "pointer", flexShrink: 0,
+        }}
+        title="מחק פרופיל"
+      >
+        <Trash2 size={16} />
+      </button>
+    </div>
   );
 }
 
@@ -188,6 +307,7 @@ function ExerciseRow({ exercise, onClick }) {
         {last && (
           <div style={{ color: "#777", fontSize: 13, marginTop: 2 }}>
             אחרון: <span style={{ color: "#ff6b35", fontWeight: 700 }}>{last.weight} ק״ג</span>
+            {last.reps != null && <span style={{ color: "#888", fontWeight: 600 }}> × {last.reps}</span>}
             <span style={{ marginRight: 6 }}>· {fmt(last.date)}</span>
           </div>
         )}
@@ -198,58 +318,10 @@ function ExerciseRow({ exercise, onClick }) {
   );
 }
 
-function Chart({ sessions, name }) {
-  const [tf, setTf] = useState("All");
-  const filtered = filterByTimeframe(sessions, tf);
-  const pts = injectGaps(filtered);
-
-  return (
-    <div style={{ marginTop: 12 }} dir="ltr">
-      <div style={{ display: "flex", gap: 6, marginBottom: 12 }} dir="rtl">
-        {TIMEFRAMES.map(t => (
-          <button key={t.key} onClick={() => setTf(t.key)} style={{
-            flex: 1, padding: "6px 0", borderRadius: 8, border: "none",
-            background: tf === t.key ? "#ff6b35" : "rgba(255,255,255,0.06)",
-            color: tf === t.key ? "#fff" : "#777", fontWeight: 700, fontSize: 12,
-            cursor: "pointer", WebkitTapHighlightColor: "transparent",
-          }}>{t.label}</button>
-        ))}
-      </div>
-      {pts.length < 2 ? (
-        <div style={{
-          height: 160, display: "flex", alignItems: "center", justifyContent: "center",
-          color: "#444", fontSize: 14,
-        }} dir="rtl">
-          <div style={{ textAlign: "center" }}>
-            <BarChart2 size={32} color="#333" style={{ marginBottom: 8 }} />
-            <div>רשום אימונים כדי לראות את גרף ההתקדמות שלך</div>
-          </div>
-        </div>
-      ) : (
-        <ResponsiveContainer width="100%" height={160}>
-          <LineChart data={pts} margin={{ top: 4, right: 4, left: -24, bottom: 0 }}>
-            <XAxis dataKey="label" tick={{ fill: "#555", fontSize: 10 }} tickLine={false} axisLine={false} />
-            <YAxis tick={{ fill: "#555", fontSize: 10 }} tickLine={false} axisLine={false} />
-            <Tooltip
-              contentStyle={{ background: "#1a1a1a", border: "1px solid #333", borderRadius: 8, fontSize: 12, textAlign: "right" }}
-              labelStyle={{ color: "#888" }}
-              itemStyle={{ color: "#ff6b35" }}
-            />
-            <Line
-              type="monotone" dataKey="weight" stroke="#ff6b35" strokeWidth={2.5}
-              dot={{ fill: "#ff6b35", r: 4, strokeWidth: 0 }}
-              connectNulls={false}
-              activeDot={{ r: 6, fill: "#ff6b35" }}
-            />
-          </LineChart>
-        </ResponsiveContainer>
-      )}
-    </div>
-  );
-}
-
+// CHANGE 1: ExerciseDetail gets reps input
 function ExerciseDetail({ exercise, onSave, onBack }) {
   const [weight, setWeight] = useState("");
+  const [reps, setReps] = useState("");       // NEW
   const [saved, setSaved] = useState(false);
   const [showChart, setShowChart] = useState(false);
   const inputRef = useRef();
@@ -261,9 +333,11 @@ function ExerciseDetail({ exercise, onSave, onBack }) {
   function handleSave() {
     const w = parseFloat(weight);
     if (!w || w <= 0) return;
-    onSave(exercise.id, w);
+    const r = reps !== "" ? parseInt(reps, 10) : null;
+    onSave(exercise.id, w, r);
     setSaved(true);
     setWeight("");
+    setReps("");
     setTimeout(() => setSaved(false), 1500);
   }
 
@@ -286,7 +360,7 @@ function ExerciseDetail({ exercise, onSave, onBack }) {
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 24 }}>
         {[
-          { label: "סט אחרון", value: last ? `${last.weight} ק״ג` : "—", sub: last ? fmt(last.date) : "" },
+          { label: "סט אחרון", value: last ? `${last.weight} ק״ג` : "—", sub: last ? (last.reps != null ? `${last.reps} חזרות · ${fmt(last.date)}` : fmt(last.date)) : "" },
           { label: "שיא אישי", value: best ? `${best} ק״ג` : "—", sub: "" },
           { label: "סה״כ סטים", value: exercise.sessions.length, sub: "" },
           { label: "החודש", value: exercise.sessions.filter(s => s.date > Date.now() - 30 * 86400000).length + " סטים", sub: "" },
@@ -307,22 +381,37 @@ function ExerciseDetail({ exercise, onSave, onBack }) {
         borderRadius: 16, padding: 20, marginBottom: 20,
       }}>
         <div style={{ color: "#ff6b35", fontSize: 12, fontWeight: 700, letterSpacing: 1, textTransform: "uppercase", marginBottom: 12 }}>
-          עדכון משקל
+          עדכון סט
         </div>
         <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+          {/* Weight input */}
           <input
             ref={inputRef}
             type="number" inputMode="decimal" placeholder="0.0"
             value={weight} onChange={e => setWeight(e.target.value)}
             onKeyDown={e => e.key === "Enter" && handleSave()}
             style={{
-              flex: 1, height: 52, background: "rgba(0,0,0,0.3)",
+              flex: 2, height: 52, background: "rgba(0,0,0,0.3)",
               border: "1px solid rgba(255,107,53,0.3)", borderRadius: 12,
               color: "#f0ede8", fontSize: 22, fontWeight: 700, textAlign: "center",
               outline: "none", padding: "0 12px",
             }}
           />
-          <span style={{ color: "#777", fontSize: 16, fontWeight: 600 }}>ק״ג</span>
+          <span style={{ color: "#777", fontSize: 14, fontWeight: 600, flexShrink: 0 }}>ק״ג</span>
+
+          {/* CHANGE 1: Reps input */}
+          <input
+            type="number" inputMode="numeric" placeholder="חזרות"
+            value={reps} onChange={e => setReps(e.target.value)}
+            onKeyDown={e => e.key === "Enter" && handleSave()}
+            style={{
+              flex: 1, height: 52, background: "rgba(0,0,0,0.3)",
+              border: "1px solid rgba(255,107,53,0.15)", borderRadius: 12,
+              color: "#f0ede8", fontSize: 18, fontWeight: 700, textAlign: "center",
+              outline: "none", padding: "0 8px",
+            }}
+          />
+
           <button onClick={handleSave} style={{
             width: 52, height: 52, borderRadius: 12, border: "none",
             background: saved ? "#22c55e" : "#ff6b35",
@@ -334,7 +423,7 @@ function ExerciseDetail({ exercise, onSave, onBack }) {
         </div>
         {last && (
           <div style={{ color: "#666", fontSize: 12, marginTop: 10, textAlign: "center" }}>
-            קודם: {last.weight} ק״ג ב-{fmt(last.date)}
+            קודם: {last.weight} ק״ג{last.reps != null ? ` × ${last.reps}` : ""} ב-{fmt(last.date)}
           </div>
         )}
       </div>
@@ -363,8 +452,8 @@ const CATS = [
 ];
 
 export default function WorkoutTracker() {
-  const { profiles, exercises, addProfile, updateExerciseWeight, addExercise } = useLocalDB();
-  const [view, setView] = useState("profiles"); 
+  const { profiles, exercises, addProfile, deleteProfile, updateExerciseWeight, addExercise } = useLocalDB();
+  const [view, setView] = useState("profiles");
   const [selectedProfile, setSelectedProfile] = useState(null);
   const [selectedCat, setSelectedCat] = useState(null);
   const [selectedExercise, setSelectedExercise] = useState(null);
@@ -383,6 +472,16 @@ export default function WorkoutTracker() {
     setSelectedProfile(p); setView("dashboard");
   }
 
+  // CHANGE 4: delete handler
+  function handleDeleteProfile(profileId) {
+    if (!window.confirm("למחוק את הפרופיל וכל הנתונים שלו?")) return;
+    deleteProfile(profileId);
+    if (selectedProfile?.id === profileId) {
+      setSelectedProfile(null);
+      setView("profiles");
+    }
+  }
+
   function handleAddProfile() {
     const name = newProfileName.trim();
     if (!name) return;
@@ -390,9 +489,13 @@ export default function WorkoutTracker() {
     setNewProfileName(""); setAddingProfile(false);
   }
 
-  function handleSaveWeight(exId, w) {
-    updateExerciseWeight(exId, w);
-    const updatedEx = { ...selectedExercise, sessions: [...selectedExercise.sessions, { weight: w, date: Date.now() }] };
+  // CHANGE 1: pass reps through
+  function handleSaveWeight(exId, w, r) {
+    updateExerciseWeight(exId, w, r);
+    const updatedEx = {
+      ...selectedExercise,
+      sessions: [...selectedExercise.sessions, { weight: w, reps: r || null, date: Date.now() }]
+    };
     setSelectedExercise(updatedEx);
   }
 
@@ -565,6 +668,7 @@ export default function WorkoutTracker() {
     );
   }
 
+  // PROFILES VIEW
   return (
     <div style={{ ...BG, padding: "52px 20px 32px" }}>
       <div style={{ marginBottom: 32 }}>
@@ -579,7 +683,13 @@ export default function WorkoutTracker() {
 
       <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 20 }}>
         {sortedProfiles.map((p, i) => (
-          <ProfileCard key={p.id} profile={p} rank={i} onClick={() => handleSelectProfile(p)} />
+          <ProfileCard
+            key={p.id}
+            profile={p}
+            rank={i}
+            onClick={() => handleSelectProfile(p)}
+            onDelete={() => handleDeleteProfile(p.id)}
+          />
         ))}
       </div>
 
