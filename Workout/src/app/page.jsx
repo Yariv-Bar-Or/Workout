@@ -68,12 +68,12 @@ const HE = {
   timerNo: "לא תודה",
   timerSeconds: "שניות",
   cats: {
-    chest:     { label: "חזה",     icon: "💪", desc: "לחיצה · פרפר · קרוסאובר" },
-    back:      { label: "גב",      icon: "🔄", desc: "חתירה · מתח · לט פולדאון" },
-    biceps:    { label: "יד קדמית",   icon: "💪", desc: "כפיפות · פריצר · האמר" },
-    triceps:   { label: "יד אחורית",  icon: "🦾", desc: "פושדאון · פרנץ׳ · דיפס" },
-    shoulders: { label: "כתפיים",  icon: "🏋️", desc: "לחיצה · פרפר · שרגים" },
-    legs:      { label: "רגליים",  icon: "🦵", desc: "סקוואט · דדליפט · לג פרס" },
+    chest:     { label: "חזה",    desc: "לחיצה · פרפר · קרוסאובר" },
+    back:      { label: "גב",    desc: "חתירה · מתח · לט פולדאון" },
+    biceps:    { label: "יד קדמית",    desc: "כפיפות · פריצר · האמר" },
+    triceps:   { label: "יד אחורית",   desc: "פושדאון · פרנץ׳ · דיפס" },
+    shoulders: { label: "כתפיים",   desc: "לחיצה · פרפר · שרגים" },
+    legs:      { label: "רגליים",   desc: "סקוואט · דדליפט · לג פרס" },
   },
   fmtRel: {
     now: "עכשיו",
