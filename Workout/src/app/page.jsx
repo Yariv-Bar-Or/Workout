@@ -68,12 +68,12 @@ const HE = {
   timerNo: "לא תודה",
   timerSeconds: "שניות",
   cats: {
-    chest:     { label: "חזה",    desc: "לחיצה · פרפר · קרוסאובר" },
-    back:      { label: "גב",    desc: "חתירה · מתח · לט פולדאון" },
-    biceps:    { label: "יד קדמית",    desc: "כפיפות · פריצר · האמר" },
-    triceps:   { label: "יד אחורית",   desc: "פושדאון · פרנץ׳ · דיפס" },
-    shoulders: { label: "כתפיים",   desc: "לחיצה · פרפר · שרגים" },
-    legs:      { label: "רגליים",   desc: "סקוואט · דדליפט · לג פרס" },
+    chest:     { label: "חזה" },
+    back:      { label: "גב"},
+    biceps:    { label: "יד קדמית"},
+    triceps:   { label: "יד אחורית"},
+    shoulders: { label: "כתפיים"},
+    legs:      { label: "רגליים"},
   },
   fmtRel: {
     now: "עכשיו",
