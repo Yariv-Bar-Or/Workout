@@ -126,6 +126,7 @@ function filterByTimeframe(sessions, tf) {
   return sessions.filter(s => s.date >= cutoff);
 }
 
+
 function Chart({ sessions }) {
   const [tf, setTf] = useState("All");
   const [selectedDot, setSelectedDot] = useState(null);
@@ -141,34 +142,31 @@ function Chart({ sessions }) {
   filtered.forEach(s => {
     const dk = dayStart(s.date);
     const prev = dayMap.get(dk);
-    if (!prev || s.weight > prev.weight) {
-      dayMap.set(dk, { date: dk, weight: s.weight, reps: s.reps ?? null, label: fmt(s.date) });
+    if (!prev || s.weight > prev.y) {
+      dayMap.set(dk, { x: dk, y: s.weight, reps: s.reps ?? null, label: fmt(s.date) });
     }
   });
-  const trendLine = Array.from(dayMap.values()).sort((a, b) => a.date - b.date);
+  const trendLine = Array.from(dayMap.values()).sort((a, b) => a.x - b.x);
 
   const allDots = filtered.map(s => ({
-    date: dayStart(s.date),
-    weight: s.weight,
+    x: dayStart(s.date),
+    y: s.weight,
     reps: s.reps ?? null,
     label: fmt(s.date),
   }));
 
   const hasData = trendLine.length >= 1;
 
-  const allWeights = allDots.map(d => d.weight);
-  const yMin = allWeights.length ? Math.min(...allWeights) : 0;
-  const yMax = allWeights.length ? Math.max(...allWeights) : 100;
+  const weights = allDots.map(d => d.y);
+  const yMin = weights.length ? Math.min(...weights) : 0;
+  const yMax = weights.length ? Math.max(...weights) : 100;
   const yPad = Math.max((yMax - yMin) * 0.2, 5);
-  const yDomain = [yMin - yPad, yMax + yPad];
 
-  const allDates = allDots.map(d => d.date);
-  const xMin = allDates.length ? Math.min(...allDates) : 0;
-  const xMax = allDates.length ? Math.max(...allDates) : 1;
-  const xDomain = xMin === xMax
-    ? [xMin - 86400000, xMax + 86400000]
-    : [xMin, xMax];
-  const xTicks = trendLine.map(d => d.date);
+  const allX = allDots.map(d => d.x);
+  const xMin = allX.length ? Math.min(...allX) : 0;
+  const xMax = allX.length ? Math.max(...allX) : 1;
+  const xDomain = xMin === xMax ? [xMin - 86400000, xMax + 86400000] : [xMin, xMax];
+  const xTicks = trendLine.map(d => d.x);
 
   return (
     <div style={{ marginTop: 12 }} dir="ltr">
@@ -195,64 +193,59 @@ function Chart({ sessions }) {
         </div>
       ) : (
         <>
-          <div style={{ position: "relative", width: "100%", height: 160 }}>
-            <ResponsiveContainer width="100%" height={160}>
-              <ComposedChart
-                data={trendLine}
-                margin={{ top: 4, right: 4, left: -24, bottom: 0 }}
-              >
-                <XAxis
-                  dataKey="date"
-                  type="number"
-                  scale="time"
-                  domain={xDomain}
-                  ticks={xTicks}
-                  tickFormatter={(v) => fmt(v)}
-                  tick={{ fill: "#555", fontSize: 10 }}
-                  tickLine={false}
-                  axisLine={false}
-                />
-                <YAxis
-                  dataKey="weight"
-                  domain={yDomain}
-                  tick={{ fill: "#555", fontSize: 10 }}
-                  tickLine={false}
-                  axisLine={false}
-                />
-                <Line
-                  dataKey="weight"
-                  stroke="#ff6b35"
-                  strokeWidth={2.5}
-                  dot={false}
-                  activeDot={false}
-                  type="monotone"
-                  isAnimationActive={false}
-                />
-                <Scatter
-                  data={allDots}
-                  shape={(props) => {
-                    const { cx, cy, payload } = props;
-                    if (cx == null || cy == null) return null;
-                    const isSelected = selectedDot &&
-                      selectedDot.date === payload.date &&
-                      selectedDot.weight === payload.weight;
-                    return (
-                      <circle
-                        cx={cx} cy={cy}
-                        r={isSelected ? 6 : 4}
-                        fill="#ff6b35"
-                        stroke={isSelected ? "#fff" : "none"}
-                        strokeWidth={isSelected ? 2 : 0}
-                        style={{ cursor: "pointer" }}
-                        onClick={() => setSelectedDot(isSelected ? null : payload)}
-                      />
-                    );
-                  }}
-                  isAnimationActive={false}
-                />
-              </ComposedChart>
-            </ResponsiveContainer>
-          </div>
+          <ResponsiveContainer width="100%" height={160}>
+            <ComposedChart data={trendLine} margin={{ top: 4, right: 4, left: -24, bottom: 0 }}>
+              <XAxis
+                dataKey="x"
+                type="number"
+                scale="time"
+                domain={xDomain}
+                ticks={xTicks}
+                tickFormatter={(v) => fmt(v)}
+                tick={{ fill: "#555", fontSize: 10 }}
+                tickLine={false}
+                axisLine={false}
+              />
+              <YAxis
+                dataKey="y"
+                domain={[yMin - yPad, yMax + yPad]}
+                tick={{ fill: "#555", fontSize: 10 }}
+                tickLine={false}
+                axisLine={false}
+              />
+              <Line
+                dataKey="y"
+                stroke="#ff6b35"
+                strokeWidth={2.5}
+                dot={false}
+                activeDot={false}
+                type="monotone"
+                isAnimationActive={false}
+              />
+              <Scatter
+                data={allDots}
+                fill="#ff6b35"
+                shape={(props) => {
+                  const { cx, cy, payload } = props;
+                  if (!cx || !cy) return null;
+                  const isSelected = selectedDot &&
+                    selectedDot.x === payload.x &&
+                    selectedDot.y === payload.y;
+                  return (
+                    <circle
+                      cx={cx} cy={cy} r={isSelected ? 6 : 4}
+                      fill="#ff6b35"
+                      stroke={isSelected ? "#fff" : "none"}
+                      strokeWidth={isSelected ? 2 : 0}
+                      style={{ cursor: "pointer" }}
+                      onClick={() => setSelectedDot(isSelected ? null : payload)}
+                    />
+                  );
+                }}
+                isAnimationActive={false}
+              />
+            </ComposedChart>
+          </ResponsiveContainer>
 
           {selectedDot && (
             <div style={{
@@ -261,22 +254,17 @@ function Chart({ sessions }) {
               padding: "10px 14px", marginTop: 10, direction: "rtl",
             }}>
               <div>
-                <div style={{ color: "#888", fontSize: 12, marginBottom: 2 }}>
-                  {selectedDot.label}
-                </div>
+                <div style={{ color: "#888", fontSize: 12, marginBottom: 2 }}>{selectedDot.label}</div>
                 <div style={{ color: "#ff6b35", fontWeight: 700, fontSize: 16 }}>
-                  {selectedDot.weight} ק״ג
+                  {selectedDot.y} ק״ג
                   {selectedDot.reps != null && (
-                    <span style={{ color: "#aaa", fontWeight: 400, fontSize: 14 }}>
-                      {" "}× {selectedDot.reps} חזרות
-                    </span>
+                    <span style={{ color: "#aaa", fontWeight: 400, fontSize: 14 }}> × {selectedDot.reps} חזרות</span>
                   )}
                 </div>
               </div>
               <button onClick={() => setSelectedDot(null)} style={{
                 background: "none", border: "none", color: "#555",
-                cursor: "pointer", padding: 4,
-                display: "flex", alignItems: "center",
+                cursor: "pointer", padding: 4, display: "flex", alignItems: "center",
               }}>
                 <X size={16} />
               </button>
@@ -287,21 +275,6 @@ function Chart({ sessions }) {
     </div>
   );
 }
-
-function CategoryBadge({ cat }) {
-  const cfg = {
-    push: { bg: "#ff6b35", label: "דחיפה (PUSH)" },
-    pull: { bg: "#4ecdc4", label: "משיכה (PULL)" },
-    legs: { bg: "#a78bfa", label: "רגליים (LEGS)" },
-  }[cat] || { bg: "#888", label: cat };
-  return (
-    <span style={{
-      background: cfg.bg, color: "#fff", fontSize: 11, fontWeight: 800,
-      padding: "2px 8px", borderRadius: 4,
-    }}>{cfg.label}</span>
-  );
-}
-
 // CHANGE 4: ProfileCard gets onDelete prop
 function ProfileCard({ profile, onClick, onDelete, rank }) {
   const initials = profile.name.slice(0, 2);
