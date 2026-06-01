@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, ScatterChart, Scatter } from "recharts";
+import { ComposedChart, Line, Scatter, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 import {
   ChevronLeft, Plus, Dumbbell, TrendingUp, X, Check,
   ChevronDown, ChevronUp, User, Zap, BarChart2, Calendar, Trash2
@@ -126,32 +126,48 @@ function filterByTimeframe(sessions, tf) {
   return sessions.filter(s => s.date >= cutoff);
 }
 
-// CHANGE 2 & 3: Chart with date grouping, trend line for first-of-day, dots for rest, reps in tooltip
-function Chart({ sessions, name }) {
+function Chart({ sessions }) {
   const [tf, setTf] = useState("All");
   const filtered = filterByTimeframe(sessions, tf);
 
-  // Group by day string
-  const dayKey = (ts) => new Date(ts).toLocaleDateString("he-IL");
+  // Normalize timestamp to midnight so all sets on same day share the same x
+  const dayStart = (ts) => {
+    const d = new Date(ts);
+    d.setHours(0, 0, 0, 0);
+    return d.getTime();
+  };
 
-  // Build trend line data: first set per day only
-  const seenDays = new Set();
-  const trendData = [];
-  // Secondary dots: subsequent sets on same day
-  const extraDots = [];
+  // All sets as scatter dots
+  const allDots = filtered.map(s => ({
+    x: dayStart(s.date),
+    y: s.weight,
+    reps: s.reps ?? null,
+    label: fmt(s.date),
+  }));
 
+  // Max weight per day for the trend line
+  const dayMap = new Map();
   filtered.forEach(s => {
-    const dk = dayKey(s.date);
-    const point = { date: s.date, weight: s.weight, reps: s.reps || null, label: fmt(s.date) };
-    if (!seenDays.has(dk)) {
-      seenDays.add(dk);
-      trendData.push(point);
-    } else {
-      extraDots.push(point);
+    const dk = dayStart(s.date);
+    const prev = dayMap.get(dk);
+    if (!prev || s.weight > prev.y) {
+      dayMap.set(dk, { x: dk, y: s.weight, reps: s.reps ?? null, label: fmt(s.date) });
     }
   });
+  const trendLine = Array.from(dayMap.values()).sort((a, b) => a.x - b.x);
 
-  // CHANGE 3: custom tooltip showing reps
+  const xTicks = trendLine.map(d => d.x);
+  const hasData = trendLine.length >= 1;
+
+  const weights = allDots.map(d => d.y);
+  const yMin = weights.length ? Math.min(...weights) : 0;
+  const yMax = weights.length ? Math.max(...weights) : 100;
+  const yPad = Math.max((yMax - yMin) * 0.2, 5);
+
+  const xMin = allDots.length ? Math.min(...allDots.map(d => d.x)) : 0;
+  const xMax = allDots.length ? Math.max(...allDots.map(d => d.x)) : 1;
+  const xDomain = xMin === xMax ? [xMin - 86400000, xMax + 86400000] : [xMin, xMax];
+
   const CustomTooltip = ({ active, payload }) => {
     if (!active || !payload?.length) return null;
     const d = payload[0].payload;
@@ -161,15 +177,11 @@ function Chart({ sessions, name }) {
         padding: "8px 12px", fontSize: 12, textAlign: "right",
       }}>
         <div style={{ color: "#888", marginBottom: 4 }}>{d.label}</div>
-        <div style={{ color: "#ff6b35", fontWeight: 700 }}>{d.weight} ק״ג</div>
-        {d.reps != null && (
-          <div style={{ color: "#aaa", marginTop: 2 }}>{d.reps} חזרות</div>
-        )}
+        <div style={{ color: "#ff6b35", fontWeight: 700 }}>{d.y} ק״ג</div>
+        {d.reps != null && <div style={{ color: "#aaa", marginTop: 2 }}>{d.reps} חזרות</div>}
       </div>
     );
   };
-
-  const hasData = trendData.length >= 2;
 
   return (
     <div style={{ marginTop: 12 }} dir="ltr">
@@ -195,39 +207,51 @@ function Chart({ sessions, name }) {
           </div>
         </div>
       ) : (
-        <div style={{ position: "relative" }}>
-          <ResponsiveContainer width="100%" height={160}>
-            <LineChart data={trendData} margin={{ top: 4, right: 4, left: -24, bottom: 0 }}>
-              <XAxis dataKey="label" tick={{ fill: "#555", fontSize: 10 }} tickLine={false} axisLine={false} />
-              <YAxis tick={{ fill: "#555", fontSize: 10 }} tickLine={false} axisLine={false} />
-              <Tooltip content={<CustomTooltip />} />
-              <Line
-                type="monotone" dataKey="weight" stroke="#ff6b35" strokeWidth={2.5}
-                dot={{ fill: "#ff6b35", r: 4, strokeWidth: 0 }}
-                connectNulls={false}
-                activeDot={{ r: 6, fill: "#ff6b35" }}
-              />
-            </LineChart>
-          </ResponsiveContainer>
-
-          {/* Extra dots for subsequent sets on same day */}
-          {extraDots.length > 0 && (
-            <ResponsiveContainer width="100%" height={160} style={{ position: "absolute", top: 0, left: 0, pointerEvents: "none" }}>
-              <ScatterChart margin={{ top: 4, right: 4, left: -24, bottom: 0 }}>
-                <XAxis dataKey="label" tick={false} tickLine={false} axisLine={false} />
-                <YAxis dataKey="weight" tick={false} tickLine={false} axisLine={false} domain={['auto', 'auto']} />
-                <Tooltip content={<CustomTooltip />} />
-                <Scatter
-                  data={extraDots}
-                  fill="transparent"
-                  stroke="#ff6b35"
-                  strokeWidth={1.5}
-                  r={4}
-                />
-              </ScatterChart>
-            </ResponsiveContainer>
-          )}
-        </div>
+        <ResponsiveContainer width="100%" height={160}>
+          <ComposedChart margin={{ top: 4, right: 4, left: -24, bottom: 0 }}>
+            <XAxis
+              dataKey="x"
+              type="number"
+              scale="time"
+              domain={xDomain}
+              ticks={xTicks}
+              tickFormatter={(v) => fmt(v)}
+              tick={{ fill: "#555", fontSize: 10 }}
+              tickLine={false}
+              axisLine={false}
+            />
+            <YAxis
+              dataKey="y"
+              domain={[yMin - yPad, yMax + yPad]}
+              tick={{ fill: "#555", fontSize: 10 }}
+              tickLine={false}
+              axisLine={false}
+            />
+            <Tooltip content={<CustomTooltip />} />
+            {/* Line connects only the heaviest set per day */}
+            <Line
+              data={trendLine}
+              dataKey="y"
+              stroke="#ff6b35"
+              strokeWidth={2.5}
+              dot={false}
+              activeDot={false}
+              type="monotone"
+              isAnimationActive={false}
+            />
+            {/* Dots for every set — vertically aligned on same date */}
+            <Scatter
+              data={allDots}
+              fill="#ff6b35"
+              shape={(props) => {
+                const { cx, cy } = props;
+                if (!cx || !cy) return null;
+                return <circle cx={cx} cy={cy} r={4} fill="#ff6b35" />;
+              }}
+              isAnimationActive={false}
+            />
+          </ComposedChart>
+        </ResponsiveContainer>
       )}
     </div>
   );
