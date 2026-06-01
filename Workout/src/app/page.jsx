@@ -2,27 +2,22 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import {
   ComposedChart, Line, Scatter, XAxis, YAxis, Tooltip,
-  ResponsiveContainer, CartesianGrid, ReferenceLine
+  ResponsiveContainer, CartesianGrid
 } from "recharts";
 import {
   ChevronLeft, Plus, Dumbbell, TrendingUp, X, Check,
   ChevronDown, ChevronUp, User, Zap, BarChart2, Calendar,
-  Pencil, Trash2, Clock, AlertTriangle, Timer, Bell
+  Pencil, Trash2, Clock, AlertTriangle, Timer
 } from "lucide-react";
 
 // ════════════════════════════════════════════════════════════════════════════
-// SUPABASE — uncomment + fill keys to activate real-time backend
+// SUPABASE — uncomment + fill keys to activate
 // ════════════════════════════════════════════════════════════════════════════
 // import { createClient } from "@supabase/supabase-js";
 // export const supabase = createClient(
 //   process.env.NEXT_PUBLIC_SUPABASE_URL,
 //   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 // );
-// Real-time (add in useDB useEffect):
-// supabase.channel("iron-log")
-//   .on("postgres_changes",{event:"*",schema:"public",table:"sessions"}, handleSessionChange)
-//   .on("postgres_changes",{event:"UPDATE",schema:"public",table:"profiles"}, handleProfileUpdate)
-//   .subscribe();
 
 // ─── Hebrew strings ──────────────────────────────────────────────────────────
 const HE = {
@@ -57,15 +52,12 @@ const HE = {
   thisMonth: "החודש",
   progressChart: "גרף מגמה",
   noData: "תעד סטים לצפייה בגרף",
-  deleteExercise: "מחיקת תרגיל",
-  deleteProfile: "מחיקת פרופיל",
   confirmTitle: "האם אתה בטוח?",
   confirmDelete: (name) => `למחוק את "${name}"?`,
   confirmDeleteProfile: (name) => `למחוק את הפרופיל של ${name} וכל הנתונים שלו?`,
   confirmYes: "כן, מחק",
   confirmNo: "ביטול",
   noSessions: "אין נתונים עדיין",
-  // Timer
   timerPrompt: "רוצה טיימר בין סטים?",
   timerYes: "כן",
   timerNo: "לא",
@@ -73,7 +65,6 @@ const HE = {
   timerCustom: "מותאם אישית",
   timerSec: "שניות",
   timerDone: "זמן מנוחה הסתיים! 💪",
-  // PR card
   prReps: (r) => `× ${r} חזרות`,
   prDate: (d) => `בתאריך ${d}`,
   cats: {
@@ -82,7 +73,7 @@ const HE = {
     biceps:    { label: "ביצפס",   icon: "💪", desc: "כפיפות · פריצר · האמר" },
     triceps:   { label: "טריצפס",  icon: "🔱", desc: "פושדאון · פרנץ׳ · דיפס" },
     shoulders: { label: "כתפיים",  icon: "🏋️", desc: "לחיצה · פרפר · שרגים" },
-    legs:      { label: "רגליים",  icon: "🦵", desc: "סקואט · דדליפט · לג פרס" },
+    legs:      { label: "רגליים",  icon: "🦵", desc: "סקוואט · דדליפט · לג פרס" },
   },
   fmtRel: {
     now: "עכשיו",
@@ -96,6 +87,7 @@ const HE = {
 const C = {
   chest: "#ff6b35", back: "#4ecdc4", biceps: "#f7dc6f",
   triceps: "#a78bfa", shoulders: "#82e0aa", legs: "#85c1e9",
+  push: "#ff6b35", // fallback alias
   bg: "#0f0f0f", surface: "rgba(255,255,255,0.04)",
   border: "rgba(255,255,255,0.08)", text: "#f0ede8", muted: "#666",
   danger: "#e74c3c", success: "#22c55e",
@@ -137,7 +129,7 @@ function sameDay(ts1, ts2) { return fmtDateInput(ts1) === fmtDateInput(ts2); }
 function dayTs(dateStr) { return new Date(dateStr + "T12:00:00").getTime(); }
 
 // ════════════════════════════════════════════════════════════════════════════
-// LOCAL DB  (each fn maps to a supabase call — see comments)
+// LOCAL DB
 // ════════════════════════════════════════════════════════════════════════════
 function useDB() {
   const load = (k, fb) => { try { return JSON.parse(localStorage.getItem(k) || "null") ?? fb; } catch { return fb; } };
@@ -151,46 +143,33 @@ function useDB() {
     } catch {}
   }, []);
 
-  // profiles ─────────────────────────────────────────────────────────────────
   const addProfile = useCallback((name) => {
     if (profiles.length >= 3) return null;
-    // supabase: await supabase.from("profiles").insert({ name }).select().single()
     const p = { id: genId(), name, updated_at: Date.now() };
     const np = [...profiles, p]; setProfiles(np); save(np, exercises); return p;
   }, [profiles, exercises, save]);
 
   const deleteProfile = useCallback((id) => {
-    // supabase: await supabase.from("profiles").delete().eq("id", id)  (CASCADE handles rest)
     const np = profiles.filter(p => p.id !== id);
     const ne = exercises.filter(e => e.profile_id !== id);
     setProfiles(np); setExercises(ne); save(np, ne);
   }, [profiles, exercises, save]);
 
-  const bumpProfile = useCallback((profileId, ts) => {
-    const np = profiles.map(p => p.id === profileId ? { ...p, updated_at: ts } : p);
-    setProfiles(np); save(np, exercises);
-  }, [profiles, exercises, save]);
-
-  // exercises ────────────────────────────────────────────────────────────────
   const addExercise = useCallback((profileId, category, name) => {
-    // supabase: await supabase.from("exercises").insert({ profile_id: profileId, category, name })
     const ex = { id: genId(), profile_id: profileId, category, name, sessions: [], updated_at: Date.now() };
     const ne = [...exercises, ex]; setExercises(ne); save(profiles, ne);
   }, [exercises, profiles, save]);
 
   const renameExercise = useCallback((id, name) => {
-    // supabase: await supabase.from("exercises").update({ name }).eq("id", id)
     const ne = exercises.map(e => e.id === id ? { ...e, name } : e);
     setExercises(ne); save(profiles, ne);
   }, [exercises, profiles, save]);
 
   const deleteExercise = useCallback((id) => {
-    // supabase: await supabase.from("exercises").delete().eq("id", id)
     const ne = exercises.filter(e => e.id !== id);
     setExercises(ne); save(profiles, ne);
   }, [exercises, profiles, save]);
 
-  // sessions ─────────────────────────────────────────────────────────────────
   const addSession = useCallback((exerciseId, { weight, reps, date }) => {
     const ts = date || Date.now();
     const session = { id: genId(), weight, reps, date: ts };
@@ -202,33 +181,28 @@ function useDB() {
       return { ...e, sessions: sorted, updated_at: ts };
     });
     const np = profiles.map(p => p.id === profileId ? { ...p, updated_at: ts } : p);
-    // supabase: await supabase.from("sessions").insert({ exercise_id: exerciseId, weight, reps, logged_at: new Date(ts) })
-    // supabase: await supabase.from("exercises").update({ updated_at: new Date(ts) }).eq("id", exerciseId)
-    // supabase: await supabase.from("profiles").update({ updated_at: new Date(ts) }).eq("id", profileId)
     setExercises(ne); setProfiles(np); save(np, ne);
     return session;
   }, [exercises, profiles, save]);
 
   const updateSession = useCallback((exerciseId, sessionId, data) => {
-    // supabase: await supabase.from("sessions").update({ weight, reps, logged_at }).eq("id", sessionId)
     const ne = exercises.map(e => {
       if (e.id !== exerciseId) return e;
       const updated = e.sessions.map(s => s.id === sessionId ? { ...s, ...data } : s)
-        .sort((a, b) => a.date - b.date); // re-sort after date change
+        .sort((a, b) => a.date - b.date);
       return { ...e, sessions: updated };
     });
     setExercises(ne); save(profiles, ne);
   }, [exercises, profiles, save]);
 
   const deleteSession = useCallback((exerciseId, sessionId) => {
-    // supabase: await supabase.from("sessions").delete().eq("id", sessionId)
     const ne = exercises.map(e => e.id !== exerciseId ? e : {
       ...e, sessions: e.sessions.filter(s => s.id !== sessionId)
     });
     setExercises(ne); save(profiles, ne);
   }, [exercises, profiles, save]);
 
-  return { profiles, exercises, addProfile, deleteProfile, bumpProfile, addExercise, renameExercise, deleteExercise, addSession, updateSession, deleteSession };
+  return { profiles, exercises, addProfile, deleteProfile, addExercise, renameExercise, deleteExercise, addSession, updateSession, deleteSession };
 }
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -256,20 +230,17 @@ function RestTimer({ seconds, onDone, catColor }) {
   return (
     <div style={{
       position: "fixed", top: 0, left: 0, right: 0, zIndex: 500,
-      background: isLow ? "rgba(231,76,60,0.95)" : "rgba(15,15,15,0.96)",
+      background: isLow ? "rgba(231,76,60,0.95)" : "rgba(15,15,15,0.97)",
       borderBottom: `2px solid ${isLow ? C.danger : catColor}`,
       padding: "14px 20px 16px",
       display: "flex", alignItems: "center", gap: 16,
-      transition: "background 0.4s",
       boxShadow: "0 4px 24px rgba(0,0,0,0.5)",
     }} dir="rtl">
-      {/* Circular progress */}
       <svg width={88} height={88} style={{ flexShrink: 0 }}>
         <circle cx={44} cy={44} r={radius} fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth={6} />
         <circle cx={44} cy={44} r={radius} fill="none"
           stroke={isLow ? C.danger : catColor} strokeWidth={6}
-          strokeDasharray={`${dash} ${circ}`}
-          strokeLinecap="round"
+          strokeDasharray={`${dash} ${circ}`} strokeLinecap="round"
           transform="rotate(-90 44 44)"
           style={{ transition: "stroke-dasharray 0.8s linear, stroke 0.4s" }}
         />
@@ -289,8 +260,7 @@ function RestTimer({ seconds, onDone, catColor }) {
           <div style={{
             height: "100%", borderRadius: 2,
             background: isLow ? C.danger : catColor,
-            width: `${pct}%`,
-            transition: "width 0.8s linear, background 0.4s",
+            width: `${pct}%`, transition: "width 0.8s linear, background 0.4s",
           }} />
         </div>
       </div>
@@ -326,60 +296,52 @@ function TimerSetupModal({ onConfirm, onSkip }) {
     }}>
       <div style={{
         background: "#1c1c1c", border: `1px solid ${C.border}`,
-        borderRadius: 24, padding: 28, width: "100%", maxWidth: 360,
-        textAlign: "center",
+        borderRadius: 24, padding: 28, width: "100%", maxWidth: 360, textAlign: "center",
       }} dir="rtl">
-        <Timer size={36} color={C.push} style={{ margin: "0 auto 14px", display: "block" }} />
+        <Timer size={36} color={C.chest} style={{ margin: "0 auto 14px", display: "block" }} />
         <div style={{ color: C.text, fontSize: 20, fontWeight: 800, marginBottom: 6 }}>{HE.timerPrompt}</div>
         <div style={{ color: C.muted, fontSize: 13, marginBottom: 24 }}>{HE.timerChoose}</div>
-
-        {/* Preset buttons */}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 14 }}>
           {TIMER_PRESETS.map(s => (
             <button key={s} onClick={() => { setChosen(s); setShowCustom(false); }} style={{
-              height: 52, borderRadius: 14, border: `2px solid ${chosen === s && !showCustom ? C.push : C.border}`,
+              height: 52, borderRadius: 14,
+              border: `2px solid ${chosen === s && !showCustom ? C.chest : C.border}`,
               background: chosen === s && !showCustom ? "rgba(255,107,53,0.12)" : C.surface,
-              color: chosen === s && !showCustom ? C.push : C.text,
+              color: chosen === s && !showCustom ? C.chest : C.text,
               fontSize: 18, fontWeight: 800, cursor: "pointer",
             }}>{s}″</button>
           ))}
         </div>
-
-        {/* Custom */}
         <button onClick={() => { setShowCustom(v => !v); setChosen(null); }} style={{
           width: "100%", height: 44, borderRadius: 12,
-          border: `2px solid ${showCustom ? C.push : C.border}`,
+          border: `2px solid ${showCustom ? C.chest : C.border}`,
           background: showCustom ? "rgba(255,107,53,0.08)" : "transparent",
-          color: showCustom ? C.push : C.muted, fontSize: 14, fontWeight: 700, cursor: "pointer",
+          color: showCustom ? C.chest : C.muted, fontSize: 14, fontWeight: 700, cursor: "pointer",
           marginBottom: 10,
         }}>{HE.timerCustom}</button>
-
         {showCustom && (
           <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 14 }}>
             <input autoFocus type="number" inputMode="numeric" value={custom}
               onChange={e => setCustom(e.target.value)} placeholder="120"
               style={{
                 flex: 1, height: 48, background: "rgba(0,0,0,0.4)",
-                border: `1px solid rgba(255,107,53,0.4)`, borderRadius: 12,
+                border: "1px solid rgba(255,107,53,0.4)", borderRadius: 12,
                 color: C.text, fontSize: 22, fontWeight: 800, textAlign: "center", outline: "none",
               }} />
             <span style={{ color: C.muted, fontSize: 14 }}>{HE.timerSec}</span>
           </div>
         )}
-
-        {/* Actions */}
         <div style={{ display: "flex", gap: 10 }}>
           <button onClick={onSkip} style={{
             flex: 1, height: 50, borderRadius: 14, border: `1px solid ${C.border}`,
             background: "transparent", color: C.muted, fontSize: 15, fontWeight: 700, cursor: "pointer",
           }}>{HE.timerNo}</button>
-          <button onClick={handleConfirm} disabled={!chosen && !custom}
-            style={{
-              flex: 2, height: 50, borderRadius: 14, border: "none",
-              background: (chosen || custom) ? C.push : "#2a2a2a",
-              color: (chosen || custom) ? "#fff" : "#444",
-              fontSize: 15, fontWeight: 800, cursor: (chosen || custom) ? "pointer" : "default",
-            }}>{HE.timerYes} ✓</button>
+          <button onClick={handleConfirm} disabled={!chosen && !custom} style={{
+            flex: 2, height: 50, borderRadius: 14, border: "none",
+            background: (chosen || custom) ? C.chest : "#2a2a2a",
+            color: (chosen || custom) ? "#fff" : "#444",
+            fontSize: 15, fontWeight: 800, cursor: (chosen || custom) ? "pointer" : "default",
+          }}>{HE.timerYes} ✓</button>
         </div>
       </div>
     </div>
@@ -387,7 +349,7 @@ function TimerSetupModal({ onConfirm, onSkip }) {
 }
 
 // ════════════════════════════════════════════════════════════════════════════
-// CONFIRMATION MODAL
+// CONFIRM MODAL
 // ════════════════════════════════════════════════════════════════════════════
 function ConfirmModal({ message, onConfirm, onCancel }) {
   return (
@@ -419,8 +381,7 @@ function ConfirmModal({ message, onConfirm, onCancel }) {
 }
 
 // ════════════════════════════════════════════════════════════════════════════
-// CHART — ComposedChart: all sets as scatter + peak trend line
-// Grouping: sets on the SAME calendar day align on one vertical.
+// CHART
 // ════════════════════════════════════════════════════════════════════════════
 const TIMEFRAMES = ["1m", "3m", "6m", "1y", "כל"];
 
@@ -430,7 +391,6 @@ function buildChartData(sessions, tf) {
     const months = { "1m": 1, "3m": 3, "6m": 6, "1y": 12 }[tf];
     data = data.filter(s => s.date >= Date.now() - months * 30 * 86400000);
   }
-  // Group by calendar day
   const byDay = {};
   data.forEach(s => {
     const key = fmtDateInput(s.date);
@@ -439,9 +399,7 @@ function buildChartData(sessions, tf) {
   });
   const days = Object.values(byDay).sort((a, b) => a.date - b.date);
   const GAP = 7 * 86400000;
-  // peakPts: ONE entry per day — drives the Line (no zigzag)
   const peakPts = [];
-  // allDots: every set — drives the Scatter (aligned by same label)
   const allDots = [];
   days.forEach((d, i) => {
     if (i > 0 && d.date - days[i-1].date > GAP) {
@@ -453,9 +411,6 @@ function buildChartData(sessions, tf) {
       allDots.push({ label: d.label, weight: s.weight, reps: s.reps, isPeak: s.id === peak.id });
     });
   });
-  // Merge into one flat array: peak rows first per label, then extras
-  // ComposedChart needs a single data array; we put peak on each row and
-  // repeat the label for non-peak sets so they land on the same X tick.
   const labelOrder = peakPts.filter(p => p.label).map(p => p.label);
   const flat = [];
   peakPts.forEach(p => flat.push({ label: p.label, peak: p.weight, dot: p.weight, reps: p.reps }));
@@ -474,9 +429,8 @@ function ChartTooltip({ active, payload }) {
       padding: "8px 14px", fontSize: 13, direction: "rtl",
     }}>
       <div style={{ color: "#777", marginBottom: 3 }}>{d.label}</div>
-      <div style={{ color: C.push, fontWeight: 800, fontSize: 16 }}>{d.dot} {HE.kg}</div>
+      <div style={{ color: C.chest, fontWeight: 800, fontSize: 16 }}>{d.dot} {HE.kg}</div>
       {d.reps > 0 && <div style={{ color: "#777" }}>× {d.reps} {HE.reps}</div>}
-      {d.isPeak && <div style={{ color: "#f7dc6f", fontSize: 11, marginTop: 3 }}>⭐ שיא יומי</div>}
     </div>
   );
 }
@@ -511,9 +465,7 @@ function PeakChart({ sessions, catColor }) {
               allowDuplicatedCategory={false} />
             <YAxis tick={{ fill: "#444", fontSize: 9 }} tickLine={false} axisLine={false} />
             <Tooltip content={<ChartTooltip />} />
-            {/* All sets as faded dots, vertically aligned by shared label */}
             <Scatter dataKey="dot" fill={color + "66"} r={4} />
-            {/* Peak trend line — one point per day, never zigzags */}
             <Line
               type="monotone" dataKey="peak" stroke={color} strokeWidth={2.5}
               dot={{ fill: color, r: 5, strokeWidth: 0 }}
@@ -528,7 +480,7 @@ function PeakChart({ sessions, catColor }) {
 }
 
 // ════════════════════════════════════════════════════════════════════════════
-// EDIT SET INLINE — weight + reps + date
+// EDIT SET INLINE
 // ════════════════════════════════════════════════════════════════════════════
 function EditSetInline({ set, onChange, onSave, onCancel }) {
   return (
@@ -544,7 +496,6 @@ function EditSetInline({ set, onChange, onSave, onCancel }) {
         <button onClick={onSave} style={iconBtn(C.success)}><Check size={16} /></button>
         <button onClick={onCancel} style={iconBtn("#444")}><X size={16} /></button>
       </div>
-      {/* Date field */}
       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
         <Calendar size={13} color="#555" />
         <label style={{ color: "#555", fontSize: 11, fontWeight: 600 }}>{HE.date}:</label>
@@ -591,14 +542,12 @@ function ExerciseDetail({ exercise, onSave, onUpdateSession, onDeleteSession, on
   const sessions = exercise.sessions || [];
   const sorted = [...sessions].sort((a, b) => b.date - a.date);
   const last = sorted[0];
-
-  // PR — find the set with the max weight, include its reps + date
   const prSet = sessions.reduce((m, s) => (!m || s.weight > m.weight) ? s : m, null);
   const best = prSet?.weight || 0;
-
   const todayTs = dayTs(logDate);
   const setsToday = sessions.filter(s => sameDay(s.date, todayTs)).sort((a,b) => a.date - b.date);
   const nextSetNum = setsToday.length + 1;
+  const catColor = C[exercise.category] || C.chest;
 
   useEffect(() => { weightRef.current?.focus(); }, []);
 
@@ -612,34 +561,24 @@ function ExerciseDetail({ exercise, onSave, onUpdateSession, onDeleteSession, on
     setWeight(""); setReps("");
   }
 
-  const catColor = C[exercise.category] || C.push;
-
   return (
     <div dir="rtl">
-      {/* Rest timer overlay */}
       {timerActive && timerSecs && (
         <RestTimer seconds={timerSecs} catColor={catColor} onDone={() => setTimerActive(false)} />
       )}
-
       <button onClick={onBack} style={bBtn(catColor)}>
         <ChevronLeft size={18} style={{ transform: "rotate(180deg)" }} /> {HE.back}
       </button>
-
-      {/* Header */}
       <div style={{ marginBottom: 20 }}>
         <span style={catBadge(catColor)}>{HE.cats[exercise.category]?.label}</span>
         <h2 style={{ color: C.text, fontSize: 24, fontWeight: 900, margin: "8px 0 0" }}>{exercise.name}</h2>
       </div>
-
-      {/* Stat cards */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 18 }}>
-        {/* Last lift */}
         <div style={statCard}>
           <div style={statLabel}>{HE.lastLift}</div>
           <div style={statVal}>{last ? `${last.weight} ${HE.kg}` : "—"}</div>
           {last && <div style={statSub}>× {last.reps} · {fmtDate(last.date)}</div>}
         </div>
-        {/* PR — with reps + date */}
         <div style={{ ...statCard, border: best ? `1px solid ${catColor}44` : `1px solid ${C.border}` }}>
           <div style={statLabel}>{HE.personalBest}</div>
           <div style={{ ...statVal, color: best ? catColor : C.text }}>{best ? `${best} ${HE.kg}` : "—"}</div>
@@ -650,12 +589,10 @@ function ExerciseDetail({ exercise, onSave, onUpdateSession, onDeleteSession, on
             </>
           )}
         </div>
-        {/* Total */}
         <div style={statCard}>
           <div style={statLabel}>{HE.totalSessions}</div>
           <div style={statVal}>{sessions.length}</div>
         </div>
-        {/* This month */}
         <div style={statCard}>
           <div style={statLabel}>{HE.thisMonth}</div>
           <div style={statVal}>{sessions.filter(s => s.date > Date.now() - 30*86400000).length}</div>
@@ -665,14 +602,11 @@ function ExerciseDetail({ exercise, onSave, onUpdateSession, onDeleteSession, on
       {/* Log panel */}
       <div style={{ background: "rgba(255,107,53,0.06)", border: "1px solid rgba(255,107,53,0.2)", borderRadius: 18, padding: 18, marginBottom: 14 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
-          <span style={{ color: catColor, fontSize: 12, fontWeight: 800, letterSpacing: 1, textTransform: "uppercase" }}>
-            {HE.logSet}
-          </span>
+          <span style={{ color: catColor, fontSize: 12, fontWeight: 800, letterSpacing: 1, textTransform: "uppercase" }}>{HE.logSet}</span>
           <span style={{ background: catColor + "22", color: catColor, fontSize: 13, fontWeight: 800, padding: "3px 10px", borderRadius: 20 }}>
             {HE.setCounter(nextSetNum)}
           </span>
         </div>
-
         <div style={{ display: "flex", gap: 10, alignItems: "flex-end", marginBottom: 12 }}>
           <div style={{ flex: 1 }}>
             <label style={lblStyle}>{HE.weight} ({HE.kg})</label>
@@ -695,8 +629,6 @@ function ExerciseDetail({ exercise, onSave, onUpdateSession, onDeleteSession, on
             {saved ? <Check size={24} /> : <Zap size={24} />}
           </button>
         </div>
-
-        {/* Date picker */}
         <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
           <button onClick={() => setShowDatePicker(v => !v)} style={{
             display: "flex", alignItems: "center", gap: 6,
@@ -714,8 +646,6 @@ function ExerciseDetail({ exercise, onSave, onUpdateSession, onDeleteSession, on
               style={{ flex: 1, height: 40, background: "rgba(0,0,0,0.4)", border: "1px solid rgba(255,107,53,0.3)", borderRadius: 10, color: C.text, fontSize: 14, padding: "0 10px", outline: "none" }} />
           )}
         </div>
-
-        {/* Ghost: sets already logged this day */}
         {setsToday.length > 0 && (
           <div style={{ marginTop: 12, borderTop: "1px solid rgba(255,255,255,0.07)", paddingTop: 10 }}>
             <div style={{ color: "#555", fontSize: 11, fontWeight: 700, letterSpacing: 0.8, textTransform: "uppercase", marginBottom: 7 }}>{HE.alreadyLogged}</div>
@@ -729,7 +659,6 @@ function ExerciseDetail({ exercise, onSave, onUpdateSession, onDeleteSession, on
             </div>
           </div>
         )}
-
         {timerSecs && (
           <div style={{ marginTop: 10, display: "flex", alignItems: "center", gap: 6, color: "#555", fontSize: 12 }}>
             <Timer size={12} color="#555" />
@@ -738,7 +667,7 @@ function ExerciseDetail({ exercise, onSave, onUpdateSession, onDeleteSession, on
         )}
       </div>
 
-      {/* History accordion */}
+      {/* History */}
       {sessions.length > 0 && (
         <>
           <button onClick={() => setShowHistory(v => !v)} style={accordion}>
@@ -756,12 +685,8 @@ function ExerciseDetail({ exercise, onSave, onUpdateSession, onDeleteSession, on
                   borderRadius: 12, padding: "10px 14px",
                 }}>
                   {editingSet?.id === s.id ? (
-                    <EditSetInline set={editingSet}
-                      onChange={setEditingSet}
-                      onSave={() => {
-                        onUpdateSession(s.id, { weight: editingSet.weight, reps: editingSet.reps, date: editingSet.date });
-                        setEditingSet(null);
-                      }}
+                    <EditSetInline set={editingSet} onChange={setEditingSet}
+                      onSave={() => { onUpdateSession(s.id, { weight: editingSet.weight, reps: editingSet.reps, date: editingSet.date }); setEditingSet(null); }}
                       onCancel={() => setEditingSet(null)} />
                   ) : (
                     <>
@@ -781,7 +706,6 @@ function ExerciseDetail({ exercise, onSave, onUpdateSession, onDeleteSession, on
         </>
       )}
 
-      {/* Chart accordion */}
       <button onClick={() => setShowChart(v => !v)} style={{ ...accordion, marginTop: 10 }}>
         <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <TrendingUp size={15} color={catColor} /> {HE.progressChart}
@@ -810,7 +734,7 @@ function ExerciseRow({ exercise, onClick, onDelete, onRename }) {
   const [newName, setNewName] = useState(exercise.name);
   const sorted = [...exercise.sessions].sort((a, b) => b.date - a.date);
   const last = sorted[0];
-  const catColor = C[exercise.category] || C.push;
+  const catColor = C[exercise.category] || C.chest;
 
   return (
     <>
@@ -892,7 +816,7 @@ function ProfileCard({ profile, rank, onClick, onDelete }) {
             <div style={{ color: C.text, fontWeight: 700, fontSize: 17, marginBottom: 2 }}>{profile.name}</div>
             <div style={{ color: "#555", fontSize: 13 }}>פעיל {fmtRelative(profile.updated_at)}</div>
           </div>
-          {rank === 0 && <span style={{ color: C.push, fontSize: 10, fontWeight: 800, letterSpacing: 1 }}>{HE.mostActive}</span>}
+          {rank === 0 && <span style={{ color: C.chest, fontSize: 10, fontWeight: 800, letterSpacing: 1 }}>{HE.mostActive}</span>}
         </button>
         <button onClick={() => setConfirmDel(true)} style={{ ...iconBtn("#444"), marginLeft: 10 }}><Trash2 size={16} /></button>
       </div>
@@ -907,7 +831,7 @@ function ProfileCard({ profile, rank, onClick, onDelete }) {
   );
 }
 
-// ─── Shared micro-styles ──────────────────────────────────────────────────────
+// ─── Micro styles ─────────────────────────────────────────────────────────────
 const statCard = { background: C.surface, borderRadius: 12, padding: "12px 14px", border: `1px solid ${C.border}` };
 const statLabel = { color: "#444", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 4 };
 const statVal = { color: C.text, fontSize: 19, fontWeight: 800 };
@@ -950,7 +874,6 @@ export default function WorkoutTracker() {
   const [newProfileName, setNewProfileName] = useState("");
   const [addingExercise, setAddingExercise] = useState(false);
   const [newExerciseName, setNewExerciseName] = useState("");
-  // Timer state — per session, reset on profile select
   const [showTimerModal, setShowTimerModal] = useState(false);
   const [timerSecs, setTimerSecs] = useState(null);
 
@@ -960,16 +883,16 @@ export default function WorkoutTracker() {
     .filter(e => e.profile_id === profileId && e.category === cat)
     .sort((a, b) => b.updated_at - a.updated_at);
   const selectedExercise = db.exercises.find(e => e.id === exerciseId);
-  const catColor = C[cat] || C.push;
+  const catColor = C[cat] || C.chest;
   const catHe = HE.cats[cat] || {};
 
   function handleSelectProfile(p) {
     setProfileId(p.id);
     setTimerSecs(null);
-    setShowTimerModal(true); // prompt timer on every session
+    setShowTimerModal(true);
   }
 
-  // ── Exercise detail ──────────────────────────────────────────────────────
+  // ── Exercise detail ────────────────────────────────────────────────────────
   if (view === "exercise" && selectedExercise) {
     return (
       <div style={PAGE}>
@@ -985,7 +908,7 @@ export default function WorkoutTracker() {
     );
   }
 
-  // ── Category ─────────────────────────────────────────────────────────────
+  // ── Category ───────────────────────────────────────────────────────────────
   if (view === "category" && cat) {
     return (
       <div style={PAGE} dir="rtl">
@@ -1038,18 +961,17 @@ export default function WorkoutTracker() {
     );
   }
 
-  // ── Dashboard ─────────────────────────────────────────────────────────────
+  // ── Dashboard ──────────────────────────────────────────────────────────────
   if (view === "dashboard" && selectedProfile) {
     return (
       <div style={PAGE} dir="rtl">
-        {/* Timer setup modal on session start */}
         {showTimerModal && (
           <TimerSetupModal
             onConfirm={(secs) => { setTimerSecs(secs); setShowTimerModal(false); }}
             onSkip={() => { setTimerSecs(null); setShowTimerModal(false); }}
           />
         )}
-        <button onClick={() => setView("profiles")} style={bBtn(C.push)}>
+        <button onClick={() => setView("profiles")} style={bBtn(C.chest)}>
           <ChevronLeft size={18} style={{ transform: "rotate(180deg)" }} /> {HE.allProfiles}
         </button>
         <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 28 }}>
@@ -1057,7 +979,7 @@ export default function WorkoutTracker() {
             width: 42, height: 42, borderRadius: "50%",
             background: "#ff6b3520", border: "2px solid #ff6b35",
             display: "flex", alignItems: "center", justifyContent: "center",
-            fontWeight: 800, fontSize: 14, color: C.push,
+            fontWeight: 800, fontSize: 14, color: C.chest,
           }}>
             {selectedProfile.name.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase()}
           </div>
@@ -1066,7 +988,7 @@ export default function WorkoutTracker() {
             <div style={{ color: "#444", fontSize: 13, display: "flex", alignItems: "center", gap: 6 }}>
               {HE.selectWorkout}
               {timerSecs && (
-                <span style={{ background: "rgba(255,107,53,0.15)", color: C.push, fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 10 }}>
+                <span style={{ background: "rgba(255,107,53,0.15)", color: C.chest, fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 10 }}>
                   ⏱ {timerSecs}″
                 </span>
               )}
@@ -1109,17 +1031,16 @@ export default function WorkoutTracker() {
     );
   }
 
-  // ── Profiles landing ──────────────────────────────────────────────────────
+  // ── Profiles landing ───────────────────────────────────────────────────────
   return (
     <div style={PAGE} dir="rtl">
       <div style={{ marginBottom: 28 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-          <Dumbbell size={22} color={C.push} />
-          <span style={{ color: C.push, fontSize: 11, fontWeight: 800, letterSpacing: 2, textTransform: "uppercase" }}>{HE.appName}</span>
+          <Dumbbell size={22} color={C.chest} />
+          <span style={{ color: C.chest, fontSize: 11, fontWeight: 800, letterSpacing: 2, textTransform: "uppercase" }}>{HE.appName}</span>
         </div>
         <h1 style={{ color: C.text, fontSize: 30, fontWeight: 900, margin: 0, letterSpacing: -1 }}>{HE.whoIsLifting}</h1>
       </div>
-
       <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 16 }}>
         {sortedProfiles.map((p, i) => (
           <ProfileCard key={p.id} profile={p} rank={i}
@@ -1128,7 +1049,6 @@ export default function WorkoutTracker() {
           />
         ))}
       </div>
-
       {db.profiles.length >= 3 ? (
         <div style={{
           background: "rgba(231,76,60,0.08)", border: "1px solid rgba(231,76,60,0.2)",
@@ -1143,7 +1063,7 @@ export default function WorkoutTracker() {
               placeholder={HE.namePlaceholder}
               style={{ flex: 1, height: 50, background: "rgba(0,0,0,0.3)", border: "1px solid rgba(255,107,53,0.3)", borderRadius: 10, color: C.text, fontSize: 16, padding: "0 14px", outline: "none" }} />
             <button onClick={() => { if (newProfileName.trim()) { db.addProfile(newProfileName.trim()); setNewProfileName(""); setAddingProfile(false); } }}
-              style={{ width: 50, height: 50, borderRadius: 10, border: "none", background: C.push, color: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              style={{ width: 50, height: 50, borderRadius: 10, border: "none", background: C.chest, color: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
               <Check size={20} />
             </button>
             <button onClick={() => { setAddingProfile(false); setNewProfileName(""); }}
@@ -1156,13 +1076,12 @@ export default function WorkoutTracker() {
         <button onClick={() => setAddingProfile(true)} style={{
           width: "100%", height: 56, borderRadius: 16,
           border: "1.5px dashed rgba(255,107,53,0.3)", background: "rgba(255,107,53,0.04)",
-          color: C.push, fontSize: 16, fontWeight: 700,
+          color: C.chest, fontSize: 16, fontWeight: 700,
           display: "flex", alignItems: "center", justifyContent: "center", gap: 8, cursor: "pointer",
         }}>
           <Plus size={20} /> {HE.addProfile} ({3 - db.profiles.length} נותרו)
         </button>
       )}
-
       {db.profiles.length === 0 && (
         <div style={{ textAlign: "center", marginTop: 48, color: "#333" }}>
           <User size={36} color="#222" style={{ margin: "0 auto 12px", display: "block" }} />
