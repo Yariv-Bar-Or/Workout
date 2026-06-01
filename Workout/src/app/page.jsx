@@ -18,13 +18,6 @@ import {
 //   process.env.NEXT_PUBLIC_SUPABASE_URL,
 //   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 // );
-//
-// Real-time subscription (add inside useEffect in useDB):
-// const channel = supabase.channel("iron-log-realtime")
-//   .on("postgres_changes", { event: "*", schema: "public", table: "sessions" }, handleSessionChange)
-//   .on("postgres_changes", { event: "UPDATE", schema: "public", table: "profiles" }, handleProfileUpdate)
-//   .subscribe();
-// return () => supabase.removeChannel(channel);
 
 // ─── Hebrew strings ──────────────────────────────────────────────────────────
 const HE = {
@@ -71,6 +64,10 @@ const HE = {
   confirmNo: "ביטול",
   noSessions: "אין נתונים עדיין",
   prev: (w, r, d) => `קודם: ${w} ק״ג × ${r} · ${d}`,
+  timerPrompt: "רוצה טיימר בין סטים?",
+  timerYes: "כן, הפעל טיימר",
+  timerNo: "לא תודה",
+  timerSeconds: "שניות",
   cats: {
     push: { label: "דחיפה", icon: "💪", desc: "חזה · כתפיים · טריצפס" },
     pull: { label: "משיכה", icon: "🔄", desc: "גב · ביצפס · אחורי כתף" },
@@ -78,6 +75,7 @@ const HE = {
   },
   fmtRel: {
     now: "עכשיו",
+    textTimer: "מנוחה זורמת",
     mins: (m) => `לפני ${m} דק׳`,
     hours: (h) => `לפני ${h} ש׳`,
     days: (d) => `לפני ${d} ימים`,
@@ -89,7 +87,7 @@ const C = {
   push: "#ff6b35", pull: "#4ecdc4", legs: "#a78bfa",
   bg: "#0f0f0f", surface: "rgba(255,255,255,0.04)",
   border: "rgba(255,255,255,0.08)", text: "#f0ede8", muted: "#666",
-  danger: "#e74c3c", success: "#22c55e",
+  danger: "#e74c3c", success: "#22c55e", info: "#3498db",
   profileColors: ["#ff6b35","#4ecdc4","#a78bfa","#f7dc6f","#82e0aa"],
 };
 const CATS = [
@@ -105,6 +103,7 @@ function fmtDate(ts) {
   if (!ts) return "";
   return new Date(ts).toLocaleDateString("he-IL", { month: "short", day: "numeric" });
 }
+// Adjusted for correct timezone formatting avoiding offsets
 function fmtDateInput(ts) {
   const d = new Date(ts || Date.now());
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
@@ -122,7 +121,7 @@ function sameDay(ts1, ts2) {
 }
 
 // ════════════════════════════════════════════════════════════════════════════
-// LOCAL DB HOOK  (each function maps to a supabase call — see comments)
+// LOCAL DB HOOK
 // ════════════════════════════════════════════════════════════════════════════
 function useDB() {
   const load = (k, fb) => { try { return JSON.parse(localStorage.getItem(k) || "null") ?? fb; } catch { return fb; } };
@@ -136,8 +135,6 @@ function useDB() {
     } catch {}
   }, []);
 
-  // ── profiles ──────────────────────────────────────────────────────────────
-  // supabase: await supabase.from("profiles").insert({ name }).select().single()
   const addProfile = useCallback((name) => {
     if (profiles.length >= 3) return null;
     const p = { id: genId(), name, updated_at: Date.now() };
@@ -146,7 +143,6 @@ function useDB() {
     return p;
   }, [profiles, exercises, save]);
 
-  // supabase: await supabase.from("profiles").delete().eq("id", id)
   const deleteProfile = useCallback((id) => {
     const np = profiles.filter(p => p.id !== id);
     const ne = exercises.filter(e => e.profile_id !== id);
@@ -158,29 +154,22 @@ function useDB() {
     setProfiles(np); save(np, exercises);
   }, [profiles, exercises, save]);
 
-  // ── exercises ─────────────────────────────────────────────────────────────
-  // supabase: await supabase.from("exercises").insert({ profile_id, category, name })
   const addExercise = useCallback((profileId, category, name) => {
     const ex = { id: genId(), profile_id: profileId, category, name, sessions: [], updated_at: Date.now() };
     const ne = [...exercises, ex];
     setExercises(ne); save(profiles, ne);
   }, [exercises, profiles, save]);
 
-  // supabase: await supabase.from("exercises").update({ name }).eq("id", id)
   const renameExercise = useCallback((id, name) => {
     const ne = exercises.map(e => e.id === id ? { ...e, name } : e);
     setExercises(ne); save(profiles, ne);
   }, [exercises, profiles, save]);
 
-  // supabase: await supabase.from("exercises").delete().eq("id", id)
   const deleteExercise = useCallback((id) => {
     const ne = exercises.filter(e => e.id !== id);
     setExercises(ne); save(profiles, ne);
   }, [exercises, profiles, save]);
 
-  // ── sessions ─────────────────────────────────────────────────────────────
-  // supabase: await supabase.from("sessions").insert({ exercise_id, weight, reps, logged_at })
-  //           then update exercises.updated_at and profiles.updated_at
   const addSession = useCallback((exerciseId, { weight, reps, date }) => {
     const ts = date || Date.now();
     const session = { id: genId(), weight, reps, date: ts };
@@ -189,22 +178,20 @@ function useDB() {
       if (e.id !== exerciseId) return e;
       profileId = e.profile_id;
       const sorted = [...e.sessions, session].sort((a, b) => a.date - b.date);
-      return { ...e, sessions: sorted, updated_at: ts };
+      return { ...e, sessions: sorted, updated_at: Date.now() };
     });
-    const np = profiles.map(p => p.id === profileId ? { ...p, updated_at: ts } : p);
+    const np = profiles.map(p => p.id === profileId ? { ...p, updated_at: Date.now() } : p);
     setExercises(ne); setProfiles(np); save(np, ne);
     return session;
   }, [exercises, profiles, save]);
 
-  // supabase: await supabase.from("sessions").update({ weight, reps }).eq("id", sessionId)
   const updateSession = useCallback((exerciseId, sessionId, data) => {
     const ne = exercises.map(e => e.id !== exerciseId ? e : {
-      ...e, sessions: e.sessions.map(s => s.id === sessionId ? { ...s, ...data } : s)
+      ...e, sessions: e.sessions.map(s => s.id === sessionId ? { ...s, ...data } : s).sort((a, b) => a.date - b.date)
     });
     setExercises(ne); save(profiles, ne);
   }, [exercises, profiles, save]);
 
-  // supabase: await supabase.from("sessions").delete().eq("id", sessionId)
   const deleteSession = useCallback((exerciseId, sessionId) => {
     const ne = exercises.map(e => e.id !== exerciseId ? e : {
       ...e, sessions: e.sessions.filter(s => s.id !== sessionId)
@@ -254,45 +241,141 @@ function ConfirmModal({ message, onConfirm, onCancel }) {
 }
 
 // ════════════════════════════════════════════════════════════════════════════
-// CHART — ComposedChart with scatter dots + peak trend line
+// DYNAMIC TIMER MODAL & COMPONENT
+// ════════════════════════════════════════════════════════════════════════════
+function TimerSetupModal({ onSelect }) {
+  const options = [60, 90, 120, 180];
+  return (
+    <div style={{
+      position: "fixed", inset: 0, background: "rgba(0,0,0,0.8)",
+      display: "flex", alignItems: "center", justifyContent: "center", zIndex: 999, padding: 24
+    }}>
+      <div style={{
+        background: "#161616", border: "1px solid rgba(255,255,255,0.1)",
+        borderRadius: 24, padding: 24, width: "100%", maxWidth: 340, textAlign: "center"
+      }} dir="rtl">
+        <Clock size={40} color={C.push} style={{ margin: "0 auto 16px", display: "block" }} />
+        <h3 style={{ color: C.text, fontSize: 20, fontWeight: 800, marginBottom: 8 }}>{HE.timerPrompt}</h3>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginTop: 20 }}>
+          {options.map(s => (
+            <button key={s} onClick={() => onSelect(s)} style={{
+              height: 50, background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)",
+              borderRadius: 14, color: C.text, fontSize: 15, fontWeight: 700, cursor: "pointer"
+            }}>
+              {s} {HE.timerSeconds}
+            </button>
+          ))}
+        </div>
+        <button onClick={() => onSelect(null)} style={{
+          width: "100%", height: 48, marginTop: 14, background: "transparent",
+          border: "1px solid rgba(255,255,255,0.05)", borderRadius: 14, color: C.muted,
+          fontSize: 14, fontWeight: 600, cursor: "pointer"
+        }}>{HE.timerNo}</button>
+      </div>
+    </div>
+  );
+}
+
+function ActiveWorkoutTimer({ duration, triggerReset, onComplete }) {
+  const [timeLeft, setTimeLeft] = useState(0);
+  const timerRef = useRef(null);
+
+  useEffect(() => {
+    if (triggerReset > 0 && duration) {
+      setTimeLeft(duration);
+    }
+  }, [triggerReset, duration]);
+
+  useEffect(() => {
+    if (timeLeft > 0) {
+      timerRef.current = setInterval(() => {
+        setTimeLeft(prev => {
+          if (prev <= 1) {
+            clearInterval(timerRef.current);
+            if (onComplete) onComplete();
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
+    return () => clearInterval(timerRef.current);
+  }, [timeLeft, onComplete]);
+
+  if (timeLeft <= 0) return null;
+
+  const mins = Math.floor(timeLeft / 60);
+  const secs = timeLeft % 60;
+  const progress = (timeLeft / duration) * 100;
+
+  return (
+    <div style={{
+      background: "#161616", border: `1px solid ${C.push}44`, borderRadius: 16,
+      padding: "12px 16px", marginBottom: 14, display: "flex", alignItems: "center",
+      justifyContent: "space-between", position: "relative", overflow: "hidden"
+    }} dir="rtl">
+      <div style={{ position: "absolute", bottom: 0, right: 0, height: 3, background: C.push, width: `${progress}%`, transition: "width 1s linear" }} />
+      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <Clock size={18} color={C.push} className="animate-pulse" />
+        <span style={{ fontSize: 14, fontWeight: 700, color: C.text }}>זמן מנוחה..</span>
+      </div>
+      <div style={{ fontSize: 22, fontWeight: 900, color: C.push, fontFamily: "monospace" }}>
+        {mins}:{secs.toString().padStart(2, "0")}
+      </div>
+    </div>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// CHART — Grouped Vertically + Continuous Peak Line
 // ════════════════════════════════════════════════════════════════════════════
 const TIMEFRAMES = ["1m", "3m", "6m", "1y", "כל"];
 
 function buildChartData(sessions, tf) {
-  let data = [...sessions].sort((a, b) => a.date - b.date);
+  let filtered = [...sessions].sort((a, b) => a.date - b.date);
   if (tf !== "כל") {
     const months = { "1m": 1, "3m": 3, "6m": 6, "1y": 12 }[tf];
     const cutoff = Date.now() - months * 30 * 86400000;
-    data = data.filter(s => s.date >= cutoff);
+    filtered = filtered.filter(s => s.date >= cutoff);
   }
-  // Group by day: all sets as scatter, peak for line
+
+  // Create absolute horizontal calendar structure grouped by day
   const byDay = {};
-  data.forEach(s => {
-    const day = fmtDateInput(s.date);
-    if (!byDay[day]) byDay[day] = { day, date: s.date, sets: [], label: fmtDate(s.date) };
-    byDay[day].sets.push(s);
-  });
-  // Flatten to chart points with gap injection
-  const days = Object.values(byDay).sort((a, b) => a.date - b.date);
-  const GAP = 7 * 86400000;
-  const allPts = [];
-  days.forEach((d, i) => {
-    if (i > 0 && d.date - days[i-1].date > GAP) {
-      // gap marker
-      allPts.push({ label: "", peak: null, dot: null });
+  filtered.forEach(s => {
+    const dayKey = fmtDateInput(s.date);
+    if (!byDay[dayKey]) {
+      byDay[dayKey] = { dayKey, date: s.date, sets: [] };
     }
-    const peak = d.sets.reduce((m, s) => s.weight > m.weight ? s : m, d.sets[0]);
+    byDay[dayKey].sets.push(s);
+  });
+
+  const sortedDays = Object.values(byDay).sort((a, b) => a.date - b.date);
+  const GAP = 7 * 86400000;
+  const chartPoints = [];
+
+  sortedDays.forEach((d, index) => {
+    // Gap validation
+    if (index > 0 && d.date - sortedDays[index - 1].date > GAP) {
+      chartPoints.push({ label: "", peak: null, dot: null });
+    }
+
+    // Determine the peak weight for this exact vertical day grid line
+    const peakSession = d.sets.reduce((max, s) => s.weight > max.weight ? s : max, d.sets[0]);
+    
+    // Inject all points sharing the exact same vertical horizontal label index
     d.sets.forEach(s => {
-      allPts.push({
-        label: d.label,
-        peak: s.id === peak.id ? s.weight : null,
+      chartPoints.push({
+        label: fmtDate(d.date),
+        dayKey: d.dayKey,
+        peak: s.id === peakSession.id ? s.weight : null, // line connector catches only the max point
         dot: s.weight,
         reps: s.reps,
-        isPeak: s.id === peak.id,
+        isPeak: s.id === peakSession.id,
       });
     });
   });
-  return allPts;
+
+  return chartPoints;
 }
 
 function ChartTooltip({ active, payload }) {
@@ -315,7 +398,7 @@ function ChartTooltip({ active, payload }) {
 function PeakChart({ sessions }) {
   const [tf, setTf] = useState("כל");
   const pts = buildChartData(sessions, tf);
-  const hasData = pts.filter(p => p.dot != null).length >= 2;
+  const hasData = pts.filter(p => p.dot != null).length >= 1;
 
   return (
     <div style={{ marginTop: 16 }}>
@@ -338,16 +421,14 @@ function PeakChart({ sessions }) {
         <ResponsiveContainer width="100%" height={170}>
           <ComposedChart data={pts} margin={{ top: 4, right: 4, left: -28, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
-            <XAxis dataKey="label" tick={{ fill: "#444", fontSize: 9 }} tickLine={false} axisLine={false} />
+            <XAxis dataKey="label" allowDuplicatedCategory={true} tick={{ fill: "#444", fontSize: 9 }} tickLine={false} axisLine={false} />
             <YAxis tick={{ fill: "#444", fontSize: 9 }} tickLine={false} axisLine={false} />
-            <Tooltip content={<ChartTooltip />} />
-            {/* All sets as scatter dots */}
-            <Scatter dataKey="dot" fill="rgba(255,107,53,0.4)" r={4} />
-            {/* Peak line */}
+            <Tooltip content={<ChartTooltip />} trigger="click" />
+            <Scatter dataKey="dot" fill="rgba(255,107,53,0.4)" r={5} />
             <Line
               type="monotone" dataKey="peak" stroke={C.push} strokeWidth={2.5}
               dot={{ fill: C.push, r: 5, strokeWidth: 0 }}
-              connectNulls={false}
+              connectNulls={true}
               activeDot={{ r: 7, stroke: C.bg, strokeWidth: 2 }}
             />
           </ComposedChart>
@@ -360,7 +441,7 @@ function PeakChart({ sessions }) {
 // ════════════════════════════════════════════════════════════════════════════
 // EXERCISE DETAIL
 // ════════════════════════════════════════════════════════════════════════════
-function ExerciseDetail({ exercise, onSave, onUpdateSession, onDeleteSession, onBack }) {
+function ExerciseDetail({ exercise, timerDuration, onSave, onUpdateSession, onDeleteSession, onBack }) {
   const [weight, setWeight] = useState("");
   const [reps, setReps] = useState("");
   const [saved, setSaved] = useState(false);
@@ -370,16 +451,21 @@ function ExerciseDetail({ exercise, onSave, onUpdateSession, onDeleteSession, on
   const [showHistory, setShowHistory] = useState(false);
   const [editingSet, setEditingSet] = useState(null);
   const [confirmDel, setConfirmDel] = useState(null);
+  const [timerTrigger, setTimerTrigger] = useState(0);
   const weightRef = useRef();
 
   const sessions = exercise.sessions || [];
   const sorted = [...sessions].sort((a, b) => b.date - a.date);
   const last = sorted[0];
-  const best = sessions.reduce((m, s) => s.weight > m ? s.weight : m, 0);
+  
+  // Custom Personal Best Calculation extraction containing paired metadata
+  const bestSession = sessions.reduce((best, current) => {
+    return (!best || current.weight > best.weight) ? current : best;
+  }, null);
 
-  // Sets already logged on selected date (ghost / set counter)
-  const todayTs = new Date(logDate + "T12:00:00").getTime();
-  const setsToday = sessions.filter(s => sameDay(s.date, todayTs)).sort((a,b) => a.date - b.date);
+  // Sets already logged on selected date
+  const selectedDayStart = new Date(logDate + "T12:00:00").getTime();
+  const setsToday = sessions.filter(s => sameDay(s.date, selectedDayStart)).sort((a,b) => a.date - b.date);
   const nextSetNum = setsToday.length + 1;
 
   useEffect(() => { weightRef.current?.focus(); }, []);
@@ -388,8 +474,10 @@ function ExerciseDetail({ exercise, onSave, onUpdateSession, onDeleteSession, on
     const w = parseFloat(weight);
     const r = parseInt(reps) || 0;
     if (!w || w <= 0 || r <= 0) return;
-    onSave({ weight: w, reps: r, date: todayTs });
+    
+    onSave({ weight: w, reps: r, date: selectedDayStart });
     setSaved(true);
+    setTimerTrigger(prev => prev + 1); // Auto fires the rest timer
     setTimeout(() => setSaved(false), 1400);
     setWeight(""); setReps("");
   }
@@ -398,6 +486,9 @@ function ExerciseDetail({ exercise, onSave, onUpdateSession, onDeleteSession, on
 
   return (
     <div dir="rtl">
+      {/* Active Workout Floating Sliding Timer Panel */}
+      <ActiveWorkoutTimer duration={timerDuration} triggerReset={timerTrigger} />
+
       {/* Back */}
       <button onClick={onBack} style={styles.backBtn(catColor)}>
         <ChevronLeft size={18} style={{ transform: "rotate(180deg)" }} /> {HE.back}
@@ -413,21 +504,20 @@ function ExerciseDetail({ exercise, onSave, onUpdateSession, onDeleteSession, on
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 18 }}>
         {[
           { label: HE.lastLift, value: last ? `${last.weight} ${HE.kg}` : "—", sub: last ? `× ${last.reps} · ${fmtDate(last.date)}` : "" },
-          { label: HE.personalBest, value: best ? `${best} ${HE.kg}` : "—", sub: "" },
+          { label: HE.personalBest, value: bestSession ? `${bestSession.weight} ${HE.kg}` : "—", sub: bestSession ? `× ${bestSession.reps} · ${fmtDate(bestSession.date)}` : "" },
           { label: HE.totalSessions, value: sessions.length, sub: "" },
           { label: HE.thisMonth, value: sessions.filter(s => s.date > Date.now() - 30*86400000).length, sub: "" },
         ].map(c => (
           <div key={c.label} style={styles.statCard}>
-            <div style={{ color: "#444", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 4 }}>{c.label}</div>
-            <div style={{ color: C.text, fontSize: 19, fontWeight: 800 }}>{c.value}</div>
-            {c.sub && <div style={{ color: "#555", fontSize: 12, marginTop: 2 }}>{c.sub}</div>}
+            <div style={{ color: "#555", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 4 }}>{c.label}</div>
+            <div style={{ color: C.text, fontSize: 18, fontWeight: 800 }}>{c.value}</div>
+            {c.sub && <div style={{ color: "#777", fontSize: 11, marginTop: 2 }}>{c.sub}</div>}
           </div>
         ))}
       </div>
 
       {/* Log panel */}
       <div style={{ background: "rgba(255,107,53,0.06)", border: "1px solid rgba(255,107,53,0.2)", borderRadius: 18, padding: 18, marginBottom: 14 }}>
-        {/* Set counter */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
           <span style={{ color: catColor, fontSize: 12, fontWeight: 800, letterSpacing: 1, textTransform: "uppercase" }}>
             {HE.logSet}
@@ -437,17 +527,17 @@ function ExerciseDetail({ exercise, onSave, onUpdateSession, onDeleteSession, on
           </span>
         </div>
 
-        {/* Weight + Reps */}
+        {/* Weight + Reps Inputs */}
         <div style={{ display: "flex", gap: 10, alignItems: "flex-end", marginBottom: 12 }}>
           <div style={{ flex: 1 }}>
             <label style={{ color: "#555", fontSize: 11, fontWeight: 600, display: "block", marginBottom: 5 }}>{HE.weight} ({HE.kg})</label>
-            <input ref={weightRef} type="number" inputMode="decimal" placeholder="0.0"
+            <input ref={weightRef} type="number" inputMode="decimal" placeholder={setsToday.length > 0 ? setsToday[setsToday.length - 1].weight : "0.0"}
               value={weight} onChange={e => setWeight(e.target.value)}
               style={styles.bigInput("rgba(255,107,53,0.3)")} />
           </div>
           <div style={{ width: 90 }}>
             <label style={{ color: "#555", fontSize: 11, fontWeight: 600, display: "block", marginBottom: 5 }}>{HE.reps}</label>
-            <input type="number" inputMode="numeric" placeholder="0"
+            <input type="number" inputMode="numeric" placeholder={setsToday.length > 0 ? setsToday[setsToday.length - 1].reps : "0"}
               value={reps} onChange={e => setReps(e.target.value)}
               style={styles.bigInput("rgba(255,255,255,0.12)")} />
           </div>
@@ -461,7 +551,7 @@ function ExerciseDetail({ exercise, onSave, onUpdateSession, onDeleteSession, on
           </button>
         </div>
 
-        {/* Date picker */}
+        {/* Date Selector */}
         <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
           <button onClick={() => setShowDatePicker(v => !v)} style={{
             display: "flex", alignItems: "center", gap: 6,
@@ -475,12 +565,12 @@ function ExerciseDetail({ exercise, onSave, onUpdateSession, onDeleteSession, on
           </button>
           {showDatePicker && (
             <input type="date" value={logDate} max={fmtDateInput(Date.now())}
-              onChange={e => setLogDate(e.target.value)}
+              onChange={e => { setLogDate(e.target.value); setShowDatePicker(false); }}
               style={{ flex: 1, height: 40, background: "rgba(0,0,0,0.4)", border: "1px solid rgba(255,107,53,0.3)", borderRadius: 10, color: C.text, fontSize: 14, padding: "0 10px", outline: "none" }} />
           )}
         </div>
 
-        {/* Ghost: sets already logged this day */}
+        {/* Real-time Ghost visual feedback indicator loop */}
         {setsToday.length > 0 && (
           <div style={{ marginTop: 14, borderTop: "1px solid rgba(255,255,255,0.07)", paddingTop: 12 }}>
             <div style={{ color: "#555", fontSize: 11, fontWeight: 700, letterSpacing: 0.8, textTransform: "uppercase", marginBottom: 8 }}>{HE.alreadyLogged}</div>
@@ -512,7 +602,14 @@ function ExerciseDetail({ exercise, onSave, onUpdateSession, onDeleteSession, on
                   {editingSet?.id === s.id ? (
                     <EditSetInline set={editingSet}
                       onChange={setEditingSet}
-                      onSave={() => { onUpdateSession(s.id, { weight: editingSet.weight, reps: editingSet.reps }); setEditingSet(null); }}
+                      onSave={() => {
+                        onUpdateSession(s.id, { 
+                          weight: editingSet.weight, 
+                          reps: editingSet.reps, 
+                          date: new Date(editingSet.dateString + "T12:00:00").getTime() 
+                        }); 
+                        setEditingSet(null); 
+                      }}
                       onCancel={() => setEditingSet(null)} />
                   ) : (
                     <>
@@ -521,7 +618,7 @@ function ExerciseDetail({ exercise, onSave, onUpdateSession, onDeleteSession, on
                         <span style={{ color: "#666", fontSize: 14, marginRight: 8 }}> × {s.reps}</span>
                         <div style={{ color: "#444", fontSize: 12, marginTop: 2 }}>{fmtDate(s.date)}</div>
                       </div>
-                      <button onClick={() => setEditingSet({ ...s })} style={styles.iconBtn("#555")}><Pencil size={15} /></button>
+                      <button onClick={() => setEditingSet({ ...s, dateString: fmtDateInput(s.date) })} style={styles.iconBtn("#555")}><Pencil size={15} /></button>
                       <button onClick={() => setConfirmDel(s)} style={styles.iconBtn("#555")}><Trash2 size={15} /></button>
                     </>
                   )}
@@ -555,22 +652,27 @@ function ExerciseDetail({ exercise, onSave, onUpdateSession, onDeleteSession, on
 
 function EditSetInline({ set, onChange, onSave, onCancel }) {
   return (
-    <div style={{ display: "flex", gap: 8, alignItems: "center", width: "100%" }}>
+    <div style={{ display: "flex", gap: 6, alignItems: "center", width: "100%", flexWrap: "wrap" }}>
       <input type="number" inputMode="decimal" value={set.weight}
         onChange={e => onChange(s => ({ ...s, weight: parseFloat(e.target.value) || s.weight }))}
-        style={{ width: 70, height: 42, background: "rgba(0,0,0,0.4)", border: "1px solid rgba(255,255,255,0.15)", borderRadius: 10, color: C.text, fontSize: 16, fontWeight: 700, textAlign: "center", outline: "none" }} />
-      <span style={{ color: "#444", fontSize: 12 }}>{HE.kg}</span>
+        style={{ width: 62, height: 40, background: "rgba(0,0,0,0.4)", border: "1px solid rgba(255,255,255,0.15)", borderRadius: 10, color: C.text, fontSize: 15, fontWeight: 700, textAlign: "center", outline: "none" }} />
+      <span style={{ color: "#444", fontSize: 11 }}>{HE.kg}</span>
       <input type="number" inputMode="numeric" value={set.reps}
         onChange={e => onChange(s => ({ ...s, reps: parseInt(e.target.value) || s.reps }))}
-        style={{ width: 60, height: 42, background: "rgba(0,0,0,0.4)", border: "1px solid rgba(255,255,255,0.15)", borderRadius: 10, color: C.text, fontSize: 16, fontWeight: 700, textAlign: "center", outline: "none" }} />
-      <button onClick={onSave} style={styles.iconBtn(C.success)}><Check size={16} /></button>
-      <button onClick={onCancel} style={styles.iconBtn("#444")}><X size={16} /></button>
+        style={{ width: 50, height: 40, background: "rgba(0,0,0,0.4)", border: "1px solid rgba(255,255,255,0.15)", borderRadius: 10, color: C.text, fontSize: 15, fontWeight: 700, textAlign: "center", outline: "none" }} />
+      
+      <input type="date" value={set.dateString} max={fmtDateInput(Date.now())}
+        onChange={e => onChange(s => ({ ...s, dateString: e.target.value }))}
+        style={{ flex: 1, minWidth: 90, height: 40, background: "rgba(0,0,0,0.4)", border: "1px solid rgba(255,255,255,0.15)", borderRadius: 10, color: C.text, fontSize: 12, padding: "0 4px", outline: "none" }} />
+      
+      <button onClick={onSave} style={styles.iconBtn(C.success)}><Check size={14} /></button>
+      <button onClick={onCancel} style={styles.iconBtn("#444")}><X size={14} /></button>
     </div>
   );
 }
 
 // ════════════════════════════════════════════════════════════════════════════
-// EXERCISE ROW in category list
+// EXERCISE ROW
 // ════════════════════════════════════════════════════════════════════════════
 function ExerciseRow({ exercise, onClick, onDelete, onRename }) {
   const [confirmDel, setConfirmDel] = useState(false);
@@ -676,7 +778,7 @@ function ProfileCard({ profile, rank, onClick, onDelete }) {
 }
 
 // ════════════════════════════════════════════════════════════════════════════
-// SHARED STYLES
+// STYLE DEFINITION OBJECTS EXTENSION
 // ════════════════════════════════════════════════════════════════════════════
 const styles = {
   backBtn: (color) => ({
@@ -707,7 +809,7 @@ const styles = {
   setRow: {
     display: "flex", alignItems: "center", gap: 10,
     background: "rgba(255,255,255,0.02)", border: `1px solid ${C.border}`,
-    borderRadius: 12, padding: "10px 14px",
+    borderRadius: 12, padding: "10px 14px", width: "100%", boxSizing: "border-box"
   },
   iconBtn: (color) => ({
     width: 36, height: 36, borderRadius: 8, border: "none",
@@ -728,7 +830,7 @@ const PAGE = {
 };
 
 // ════════════════════════════════════════════════════════════════════════════
-// MAIN APP
+// MAIN APP COMPONENT
 // ════════════════════════════════════════════════════════════════════════════
 export default function WorkoutTracker() {
   const db = useDB();
@@ -740,6 +842,10 @@ export default function WorkoutTracker() {
   const [newProfileName, setNewProfileName] = useState("");
   const [addingExercise, setAddingExercise] = useState(false);
   const [newExerciseName, setNewExerciseName] = useState("");
+  
+  // Per-session configuration logic states
+  const [userTimerDuration, setUserTimerDuration] = useState(null);
+  const [showTimerPrompt, setShowTimerPrompt] = useState(false);
 
   const sortedProfiles = [...db.profiles].sort((a, b) => b.updated_at - a.updated_at);
   const selectedProfile = db.profiles.find(p => p.id === profileId);
@@ -750,12 +856,13 @@ export default function WorkoutTracker() {
   const catColor = C[cat] || C.push;
   const catHe = HE.cats[cat] || {};
 
-  // ── Exercise detail ────────────────────────────────────────────────────────
+  // ── Exercise detail view ───────────────────────────────────────────────────
   if (view === "exercise" && selectedExercise) {
     return (
       <div style={PAGE}>
         <ExerciseDetail
           exercise={selectedExercise}
+          timerDuration={userTimerDuration}
           onSave={(data) => db.addSession(exerciseId, data)}
           onUpdateSession={(sid, data) => db.updateSession(exerciseId, sid, data)}
           onDeleteSession={(sid) => db.deleteSession(exerciseId, sid)}
@@ -765,7 +872,7 @@ export default function WorkoutTracker() {
     );
   }
 
-  // ── Category ───────────────────────────────────────────────────────────────
+  // ── Category view ──────────────────────────────────────────────────────────
   if (view === "category" && cat) {
     return (
       <div style={PAGE} dir="rtl">
@@ -791,7 +898,7 @@ export default function WorkoutTracker() {
             <div style={{ color: "#555", fontSize: 11, fontWeight: 700, marginBottom: 10, textTransform: "uppercase", letterSpacing: 0.8 }}>{HE.exerciseName}</div>
             <div style={{ display: "flex", gap: 8 }}>
               <input autoFocus value={newExerciseName} onChange={e => setNewExerciseName(e.target.value)}
-                onKeyDown={e => e.key === "Enter" && (() => { db.addExercise(profileId, cat, newExerciseName.trim()); setNewExerciseName(""); setAddingExercise(false); })()}
+                onKeyDown={e => e.key === "Enter" && (() => { if (newExerciseName.trim()) { db.addExercise(profileId, cat, newExerciseName.trim()); setNewExerciseName(""); setAddingExercise(false); } })()}
                 placeholder={HE.exPlaceholder} style={styles.addInput} />
               <button onClick={() => { if (newExerciseName.trim()) { db.addExercise(profileId, cat, newExerciseName.trim()); setNewExerciseName(""); setAddingExercise(false); } }}
                 style={{ width: 48, height: 48, borderRadius: 10, border: "none", background: catColor, color: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -817,11 +924,11 @@ export default function WorkoutTracker() {
     );
   }
 
-  // ── Dashboard ──────────────────────────────────────────────────────────────
+  // ── Dashboard view ─────────────────────────────────────────────────────────
   if (view === "dashboard" && selectedProfile) {
     return (
       <div style={PAGE} dir="rtl">
-        <button onClick={() => setView("profiles")} style={styles.backBtn(C.push)}>
+        <button onClick={() => { setView("profiles"); setUserTimerDuration(null); }} style={styles.backBtn(C.push)}>
           <ChevronLeft size={18} style={{ transform: "rotate(180deg)" }} /> {HE.allProfiles}
         </button>
         <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 28 }}>
@@ -835,7 +942,7 @@ export default function WorkoutTracker() {
           </div>
           <div>
             <h1 style={{ color: C.text, fontSize: 20, fontWeight: 800, margin: 0 }}>{selectedProfile.name}</h1>
-            <div style={{ color: "#444", fontSize: 13 }}>{HE.selectWorkout}</div>
+            <div style={{ color: "#444", fontSize: 13 }}>{HE.selectWorkout} {userTimerDuration ? `· ⏱️ ${userTimerDuration}ס׳` : "· ⏱️ ללא טיימר"}</div>
           </div>
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
@@ -874,9 +981,17 @@ export default function WorkoutTracker() {
     );
   }
 
-  // ── Profiles landing ───────────────────────────────────────────────────────
+  // ── Profiles landing view ──────────────────────────────────────────────────
   return (
     <div style={PAGE} dir="rtl">
+      {showTimerPrompt && (
+        <TimerSetupModal onSelect={(seconds) => {
+          setUserTimerDuration(seconds);
+          setShowTimerPrompt(false);
+          setView("dashboard");
+        }} />
+      )}
+
       <div style={{ marginBottom: 28 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
           <Dumbbell size={22} color={C.push} />
@@ -888,7 +1003,10 @@ export default function WorkoutTracker() {
       <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 16 }}>
         {sortedProfiles.map((p, i) => (
           <ProfileCard key={p.id} profile={p} rank={i}
-            onClick={() => { setProfileId(p.id); setView("dashboard"); }}
+            onClick={() => { 
+              setProfileId(p.id); 
+              setShowTimerPrompt(true); // Always prompts dynamic setup configuration on route access
+            }}
             onDelete={() => db.deleteProfile(p.id)}
           />
         ))}
