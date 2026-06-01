@@ -70,8 +70,8 @@ const HE = {
   cats: {
     chest:     { label: "חזה",     icon: "💪", desc: "לחיצה · פרפר · קרוסאובר" },
     back:      { label: "גב",      icon: "🔄", desc: "חתירה · מתח · לט פולדאון" },
-    biceps:    { label: "ביצפס",   icon: "💪", desc: "כפיפות · פריצר · האמר" },
-    triceps:   { label: "טריצפס",  icon: "🔱", desc: "פושדאון · פרנץ׳ · דיפס" },
+    biceps:    { label: "יד קדמית",   icon: "💪", desc: "כפיפות · פריצר · האמר" },
+    triceps:   { label: "יד אחורית",  icon: "🦾", desc: "פושדאון · פרנץ׳ · דיפס" },
     shoulders: { label: "כתפיים",  icon: "🏋️", desc: "לחיצה · פרפר · שרגים" },
     legs:      { label: "רגליים",  icon: "🦵", desc: "סקוואט · דדליפט · לג פרס" },
   },
