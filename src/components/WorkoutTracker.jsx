@@ -346,6 +346,20 @@ function ExerciseRow({ exercise, onClick }) {
   );
 }
 
+function CategoryBadge({ cat }) {
+  const cfg = {
+    push: { bg: "#ff6b35", label: "דחיפה (PUSH)" },
+    pull: { bg: "#4ecdc4", label: "משיכה (PULL)" },
+    legs: { bg: "#a78bfa", label: "רגליים (LEGS)" },
+  }[cat] || { bg: "#888", label: cat };
+  return (
+    <span style={{
+      background: cfg.bg, color: "#fff", fontSize: 11, fontWeight: 800,
+      padding: "2px 8px", borderRadius: 4,
+    }}>{cfg.label}</span>
+  );
+}
+
 // CHANGE 1: ExerciseDetail gets reps input
 function ExerciseDetail({ exercise, onSave, onBack }) {
   const [weight, setWeight] = useState("");
