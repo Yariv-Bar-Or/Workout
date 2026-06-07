@@ -810,3 +810,4 @@ export default function WorkoutTracker() {
     </div>
   );
 }
+  
