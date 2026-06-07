@@ -238,24 +238,22 @@ function Chart({ sessions }) {
                 dot={(props) => {
                   const { cx, cy, payload } = props;
                   if (cx == null || cy == null) return null;
+                  const isDaySelected = selectedDot && selectedDot.x === payload.x;
                   return (
                     <g key={payload.x}>
                       {payload.dots.map((dot, i) => {
-                        const dotY = dot.y;
-                        const isSelected = selectedDot &&
-                          selectedDot.x === dot.x &&
-                          selectedDot.y === dotY;
+                        const dotCy = props.yAxis?.scale ? props.yAxis.scale(dot.y) : cy;
                         return (
                           <circle
                             key={i}
                             cx={cx}
-                            cy={props.yAxis.scale(dotY)}
-                            r={isSelected ? 6 : 4}
+                            cy={dotCy}
+                            r={isDaySelected ? 6 : 4}
                             fill="#ff6b35"
-                            stroke={isSelected ? "#fff" : "none"}
-                            strokeWidth={isSelected ? 2 : 0}
+                            stroke={isDaySelected ? "#fff" : "none"}
+                            strokeWidth={isDaySelected ? 2 : 0}
                             style={{ cursor: "pointer" }}
-                            onClick={() => setSelectedDot(isSelected ? null : dot)}
+                            onClick={(e) => { e.stopPropagation(); setSelectedDot(isDaySelected ? null : payload); }}
                           />
                         );
                       })}
@@ -271,18 +269,23 @@ function Chart({ sessions }) {
 
           {selectedDot && (
             <div style={{
-              display: "flex", alignItems: "center", justifyContent: "space-between",
+              display: "flex", alignItems: "flex-start", justifyContent: "space-between",
               background: "rgba(255,255,255,0.06)", borderRadius: 10,
               padding: "10px 14px", marginTop: 10, direction: "rtl",
             }}>
               <div>
-                <div style={{ color: "#888", fontSize: 12, marginBottom: 2 }}>{selectedDot.label}</div>
-                <div style={{ color: "#ff6b35", fontWeight: 700, fontSize: 16 }}>
-                  {selectedDot.y} ק״ג
-                  {selectedDot.reps != null && (
-                    <span style={{ color: "#aaa", fontWeight: 400, fontSize: 14 }}> × {selectedDot.reps} חזרות</span>
-                  )}
-                </div>
+                <div style={{ color: "#888", fontSize: 12, marginBottom: 4 }}>{selectedDot.label}</div>
+                {[...selectedDot.dots].sort((a, b) => b.y - a.y).map((dot, i) => (
+                  <div key={i} style={{ color: "#ff6b35", fontWeight: 700, fontSize: 16, marginBottom: 2 }}>
+                    {selectedDot.dots.length > 1 && (
+                      <span style={{ color: "#777", fontWeight: 500, fontSize: 12 }}>סט {i + 1}: </span>
+                    )}
+                    {dot.y} ק״ג
+                    {dot.reps != null && (
+                      <span style={{ color: "#aaa", fontWeight: 400, fontSize: 14 }}> × {dot.reps} חזרות</span>
+                    )}
+                  </div>
+                ))}
               </div>
               <button onClick={() => setSelectedDot(null)} style={{
                 background: "none", border: "none", color: "#555",
