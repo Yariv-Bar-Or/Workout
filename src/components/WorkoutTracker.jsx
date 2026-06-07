@@ -138,12 +138,19 @@ function Chart({ sessions }) {
     return d.getTime();
   };
 
+  const daySetsMap = new Map();
+  filtered.forEach(s => {
+    const dk = dayStart(s.date);
+    if (!daySetsMap.has(dk)) daySetsMap.set(dk, []);
+    daySetsMap.get(dk).push({ weight: s.weight, reps: s.reps != null ? Number(s.reps) : null });
+  });
+
   const dayMap = new Map();
   filtered.forEach(s => {
     const dk = dayStart(s.date);
     const prev = dayMap.get(dk);
     if (!prev || s.weight > prev.y) {
-      dayMap.set(dk, { x: dk, y: s.weight, reps: s.reps ?? null, label: fmt(s.date) });
+      dayMap.set(dk, { x: dk, y: s.weight, reps: s.reps != null ? Number(s.reps) : null, label: fmt(s.date) });
     }
   });
   const trendLine = Array.from(dayMap.values()).sort((a, b) => a.x - b.x);
@@ -151,8 +158,9 @@ function Chart({ sessions }) {
   const allDots = filtered.map(s => ({
     x: dayStart(s.date),
     y: s.weight,
-    reps: s.reps ?? null,
+    reps: s.reps != null ? Number(s.reps) : null,
     label: fmt(s.date),
+    sets: daySetsMap.get(dayStart(s.date)) || [],
   }));
 
   const hasData = trendLine.length >= 1;
@@ -226,7 +234,8 @@ function Chart({ sessions }) {
                 strokeWidth={2.5}
                 dot={false}
                 activeDot={false}
-                type="monotone"
+                type="linear"
+                connectNulls={true}
                 isAnimationActive={false}
               />
               <Scatter
@@ -260,18 +269,20 @@ function Chart({ sessions }) {
 
           {selectedDot && (
             <div style={{
-              display: "flex", alignItems: "center", justifyContent: "space-between",
+              display: "flex", alignItems: "flex-start", justifyContent: "space-between",
               background: "rgba(255,255,255,0.06)", borderRadius: 10,
               padding: "10px 14px", marginTop: 10, direction: "rtl",
             }}>
               <div>
-                <div style={{ color: "#888", fontSize: 12, marginBottom: 2 }}>{selectedDot.label}</div>
-                <div style={{ color: "#ff6b35", fontWeight: 700, fontSize: 16 }}>
-                  {selectedDot.y} ק״ג
-                  {selectedDot.reps != null && (
-                    <span style={{ color: "#aaa", fontWeight: 400, fontSize: 14 }}> × {selectedDot.reps} חזרות</span>
-                  )}
-                </div>
+                <div style={{ color: "#888", fontSize: 12, marginBottom: 6 }}>{selectedDot.label}</div>
+                {(selectedDot.sets && selectedDot.sets.length > 0 ? selectedDot.sets : [{ weight: selectedDot.y, reps: selectedDot.reps }]).map((set, i) => (
+                  <div key={i} style={{ color: "#ff6b35", fontWeight: 700, fontSize: 16, marginBottom: 2 }}>
+                    {set.weight} ק״ג
+                    {set.reps != null && (
+                      <span style={{ color: "#aaa", fontWeight: 400, fontSize: 14 }}> × {set.reps} חזרות</span>
+                    )}
+                  </div>
+                ))}
               </div>
               <button onClick={() => setSelectedDot(null)} style={{
                 background: "none", border: "none", color: "#555",
