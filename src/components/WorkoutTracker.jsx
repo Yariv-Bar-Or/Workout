@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { ComposedChart, Line, Scatter, XAxis, YAxis, ResponsiveContainer } from "recharts";
+import { LineChart, Line, XAxis, YAxis, ResponsiveContainer } from "recharts";
 import {
   ChevronLeft, Plus, Dumbbell, TrendingUp, X, Check,
   ChevronDown, ChevronUp, User, Zap, BarChart2, Calendar, Trash2
@@ -142,41 +142,43 @@ function Chart({ sessions }) {
   filtered.forEach(s => {
     const dk = dayStart(s.date);
     if (!daySetsMap.has(dk)) daySetsMap.set(dk, []);
-    daySetsMap.get(dk).push({ weight: s.weight, reps: s.reps != null ? Number(s.reps) : null });
+    daySetsMap.get(dk).push({
+      weight: s.weight,
+      reps: s.reps != null ? Number(s.reps) : null,
+    });
   });
 
-  const dayMap = new Map();
-  filtered.forEach(s => {
-    const dk = dayStart(s.date);
-    const prev = dayMap.get(dk);
-    if (!prev || s.weight > prev.y) {
-      dayMap.set(dk, { x: dk, y: s.weight, reps: s.reps != null ? Number(s.reps) : null, label: fmt(s.date) });
-    }
-  });
-  const trendLine = Array.from(dayMap.values()).sort((a, b) => a.x - b.x);
+  const lineData = Array.from(daySetsMap.entries())
+    .sort((a, b) => a[0] - b[0])
+    .map(([dk, sets]) => ({
+      x: dk,
+      y: Math.max(...sets.map(s => s.weight)),
+      label: fmt(dk),
+      sets: [...sets].sort((a, b) => b.weight - a.weight),
+    }));
 
-  const allDots = filtered.map(s => ({
-    x: dayStart(s.date),
-    y: s.weight,
-    reps: s.reps != null ? Number(s.reps) : null,
-    label: fmt(s.date),
-    sets: daySetsMap.get(dayStart(s.date)) || [],
-  }));
-
-  const hasData = trendLine.length >= 1;
-
-  const weights = allDots.map(d => d.y);
+  const hasData = lineData.length >= 1;
+  const weights = lineData.map(d => d.y);
   const yMin = weights.length ? Math.min(...weights) : 0;
   const yMax = weights.length ? Math.max(...weights) : 100;
   const yPad = Math.max((yMax - yMin) * 0.2, 5);
-  const yDomain = [yMin - yPad, yMax + yPad];
 
-  const allX = allDots.map(d => d.x);
-  const xMin = allX.length ? Math.min(...allX) : 0;
-  const xMax = allX.length ? Math.max(...allX) : 1;
-  const xDomain = xMin === xMax ? [xMin - 86400000, xMax + 86400000] : [xMin, xMax];
-  const xTicks = trendLine.map(d => d.x);
-
+  const CustomDot = (props) => {
+    const { cx, cy, payload } = props;
+    if (cx == null || cy == null) return null;
+    const isSelected = selectedDot?.x === payload.x;
+    return (
+      <circle
+        cx={cx} cy={cy}
+        r={isSelected ? 7 : 5}
+        fill="#ff6b35"
+        stroke={isSelected ? "#fff" : "#0f0f0f"}
+        strokeWidth={2}
+        style={{ cursor: "pointer" }}
+        onClick={() => setSelectedDot(isSelected ? null : payload)}
+      />
+    );
+  };
 
   return (
     <div style={{ marginTop: 12 }} dir="ltr">
@@ -192,10 +194,7 @@ function Chart({ sessions }) {
       </div>
 
       {!hasData ? (
-        <div style={{
-          height: 160, display: "flex", alignItems: "center", justifyContent: "center",
-          color: "#444", fontSize: 14,
-        }} dir="rtl">
+        <div style={{ height: 160, display: "flex", alignItems: "center", justifyContent: "center", color: "#444", fontSize: 14 }} dir="rtl">
           <div style={{ textAlign: "center" }}>
             <BarChart2 size={32} color="#333" style={{ marginBottom: 8 }} />
             <div>רשום אימונים כדי לראות את גרף ההתקדמות שלך</div>
@@ -204,67 +203,33 @@ function Chart({ sessions }) {
       ) : (
         <>
           <ResponsiveContainer width="100%" height={160}>
-            <ComposedChart margin={{ top: 4, right: 4, left: -24, bottom: 0 }}>
+            <LineChart data={lineData} margin={{ top: 8, right: 8, left: -24, bottom: 0 }}>
               <XAxis
-                xAxisId="main"
                 dataKey="x"
                 type="number"
                 scale="time"
-                domain={xDomain}
-                ticks={xTicks}
+                domain={["dataMin", "dataMax"]}
                 tickFormatter={(v) => fmt(v)}
                 tick={{ fill: "#555", fontSize: 10 }}
                 tickLine={false}
                 axisLine={false}
               />
               <YAxis
-                yAxisId="main"
-                dataKey="y"
-                domain={yDomain}
+                domain={[yMin - yPad, yMax + yPad]}
                 tick={{ fill: "#555", fontSize: 10 }}
                 tickLine={false}
                 axisLine={false}
               />
               <Line
-                xAxisId="main"
-                yAxisId="main"
-                data={trendLine}
                 dataKey="y"
                 stroke="#ff6b35"
                 strokeWidth={2.5}
-                dot={false}
+                dot={<CustomDot />}
                 activeDot={false}
                 type="linear"
-                connectNulls={true}
                 isAnimationActive={false}
               />
-              <Scatter
-                xAxisId="main"
-                yAxisId="main"
-                data={allDots}
-                onClick={(scatterData) => setSelectedDot(prev =>
-                  prev?.x === scatterData.x && prev?.y === scatterData.y ? null : scatterData
-                )}
-                shape={(props) => {
-                  const { cx, cy, payload } = props;
-                  if (cx == null || cy == null) return null;
-                  const isSelected = selectedDot &&
-                    selectedDot.x === payload.x &&
-                    selectedDot.y === payload.y;
-                  return (
-                    <circle
-                      cx={cx}
-                      cy={cy}
-                      r={isSelected ? 6 : 4}
-                      fill="#ff6b35"
-                      stroke={isSelected ? "#fff" : "none"}
-                      strokeWidth={isSelected ? 2 : 0}
-                      style={{ cursor: "pointer" }}
-                    />
-                  );
-                }}
-              />
-            </ComposedChart>
+            </LineChart>
           </ResponsiveContainer>
 
           {selectedDot && (
@@ -275,8 +240,11 @@ function Chart({ sessions }) {
             }}>
               <div>
                 <div style={{ color: "#888", fontSize: 12, marginBottom: 6 }}>{selectedDot.label}</div>
-                {(selectedDot.sets && selectedDot.sets.length > 0 ? selectedDot.sets : [{ weight: selectedDot.y, reps: selectedDot.reps }]).map((set, i) => (
+                {selectedDot.sets.map((set, i) => (
                   <div key={i} style={{ color: "#ff6b35", fontWeight: 700, fontSize: 16, marginBottom: 2 }}>
+                    {selectedDot.sets.length > 1 && (
+                      <span style={{ color: "#666", fontWeight: 400, fontSize: 13 }}>סט {i + 1}: </span>
+                    )}
                     {set.weight} ק״ג
                     {set.reps != null && (
                       <span style={{ color: "#aaa", fontWeight: 400, fontSize: 14 }}> × {set.reps} חזרות</span>
