@@ -344,7 +344,6 @@ function buildChartData(sessions, tf) {
     filtered = filtered.filter(s => s.date >= cutoff);
   }
 
-  // Group by calendar day
   const byDay = {};
   filtered.forEach(s => {
     const dayKey = fmtDateInput(s.date);
@@ -353,37 +352,19 @@ function buildChartData(sessions, tf) {
   });
 
   const sortedDays = Object.values(byDay).sort((a, b) => a.date - b.date);
-  const GAP = 7 * 86400000;
+  const flat = [];
 
-  // Build two parallel arrays:
-  // peakData: one entry per day for the Line (no zigzag possible)
-  // allData:  every set for the Scatter (same label = same X position)
-  const peakData = [];
-  const allData = [];
-
-  sortedDays.forEach((d, i) => {
-    if (i > 0 && d.date - sortedDays[i-1].date > GAP) {
-      peakData.push({ label: null, peakWeight: null }); // gap breaks line
-    }
+  sortedDays.forEach(d => {
     const peakSet = d.sets.reduce((max, s) => s.weight > max.weight ? s : max, d.sets[0]);
     const label = fmtDate(d.date);
-    peakData.push({ label, peakWeight: peakSet.weight });
-    d.sets.forEach(s => {
-      allData.push({ label, dotWeight: s.weight, reps: s.reps, isPeak: s.id === peakSet.id });
-    });
+    // Peak entry first: carries the line point and its dot
+    flat.push({ label, peakWeight: peakSet.weight, dotWeight: peakSet.weight, reps: peakSet.reps ?? null });
+    // Non-peak entries: dot only, no line point
+    d.sets
+      .filter(s => s.id !== peakSet.id)
+      .forEach(s => flat.push({ label, peakWeight: null, dotWeight: s.weight, reps: s.reps ?? null }));
   });
 
-  // Merge into one flat array for ComposedChart.
-  // Each peak row carries its dot too. Non-peak sets are appended with same label.
-  const labelOrder = peakData.filter(p => p.label).map(p => p.label);
-  const flat = [];
-  peakData.forEach(p => flat.push({ label: p.label, peakWeight: p.peakWeight, dotWeight: p.peakWeight }));
-  allData.filter(d => !d.isPeak).forEach(d => flat.push({ label: d.label, peakWeight: null, dotWeight: d.dotWeight, reps: d.reps }));
-  flat.sort((a, b) => {
-    const ai = labelOrder.indexOf(a.label);
-    const bi = labelOrder.indexOf(b.label);
-    return ai - bi;
-  });
   return flat;
 }
 
@@ -405,6 +386,7 @@ function ChartTooltip({ active, payload }) {
 
 function PeakChart({ sessions, catColor }) {
   const [tf, setTf] = useState("כל");
+  const [selectedDot, setSelectedDot] = useState(null);
   const flat = buildChartData(sessions, tf);
   const color = catColor || C.push;
   const hasData = flat.filter(p => p.dotWeight != null).length >= 1;
@@ -413,7 +395,7 @@ function PeakChart({ sessions, catColor }) {
     <div style={{ marginTop: 16 }}>
       <div style={{ display: "flex", gap: 6, marginBottom: 14 }}>
         {TIMEFRAMES.map(t => (
-          <button key={t} onClick={() => setTf(t)} style={{
+          <button key={t} onClick={() => { setTf(t); setSelectedDot(null); }} style={{
             flex: 1, padding: "8px 0", borderRadius: 10, border: "none",
             background: tf === t ? color : "rgba(255,255,255,0.06)",
             color: tf === t ? "#fff" : "#555", fontWeight: 700, fontSize: 12,
@@ -427,24 +409,66 @@ function PeakChart({ sessions, catColor }) {
           <span style={{ fontSize: 13, color: "#444" }}>{HE.noData}</span>
         </div>
       ) : (
-        <ResponsiveContainer width="100%" height={170}>
-          <ComposedChart data={flat} margin={{ top: 4, right: 4, left: -28, bottom: 0 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
-            <XAxis dataKey="label" allowDuplicatedCategory={false}
-              tick={{ fill: "#444", fontSize: 9 }} tickLine={false} axisLine={false} />
-            <YAxis tick={{ fill: "#444", fontSize: 9 }} tickLine={false} axisLine={false} />
-            <Tooltip content={<ChartTooltip />} />
-            {/* All sets as faded dots — same label = same vertical X */}
-            <Scatter dataKey="dotWeight" fill={color + "66"} r={5} />
-            {/* Peak line — one point per day, never zigzags between sets */}
-            <Line
-              type="monotone" dataKey="peakWeight" stroke={color} strokeWidth={2.5}
-              dot={{ fill: color, r: 5, strokeWidth: 0 }}
-              connectNulls={false}
-              activeDot={{ r: 7, stroke: C.bg, strokeWidth: 2 }}
-            />
-          </ComposedChart>
-        </ResponsiveContainer>
+        <>
+          <ResponsiveContainer width="100%" height={170}>
+            <ComposedChart data={flat} margin={{ top: 4, right: 4, left: -28, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
+              <XAxis dataKey="label" allowDuplicatedCategory={false}
+                tick={{ fill: "#444", fontSize: 9 }} tickLine={false} axisLine={false} />
+              <YAxis tick={{ fill: "#444", fontSize: 9 }} tickLine={false} axisLine={false} />
+              <Scatter
+                dataKey="dotWeight"
+                onClick={(data) => setSelectedDot(prev =>
+                  prev?.label === data.label && prev?.dotWeight === data.dotWeight ? null : data
+                )}
+                shape={(props) => {
+                  const { cx, cy, payload } = props;
+                  if (cx == null || cy == null) return null;
+                  const isSel = selectedDot?.label === payload.label && selectedDot?.dotWeight === payload.dotWeight;
+                  return (
+                    <circle
+                      cx={cx} cy={cy}
+                      r={isSel ? 7 : 5}
+                      fill={isSel ? color : color + "66"}
+                      stroke={isSel ? "#fff" : "none"}
+                      strokeWidth={isSel ? 2 : 0}
+                      style={{ cursor: "pointer" }}
+                    />
+                  );
+                }}
+              />
+              <Line
+                type="monotone" dataKey="peakWeight" stroke={color} strokeWidth={2.5}
+                dot={false} activeDot={false}
+                connectNulls={true}
+              />
+            </ComposedChart>
+          </ResponsiveContainer>
+
+          {selectedDot && (
+            <div style={{
+              display: "flex", alignItems: "center", justifyContent: "space-between",
+              background: "rgba(255,255,255,0.05)", borderRadius: 10,
+              padding: "10px 14px", marginTop: 10, direction: "rtl",
+            }}>
+              <div>
+                <div style={{ color: "#666", fontSize: 12, marginBottom: 2 }}>{selectedDot.label}</div>
+                <div style={{ color: color, fontWeight: 800, fontSize: 16 }}>
+                  {selectedDot.dotWeight} {HE.kg}
+                  {selectedDot.reps > 0 && (
+                    <span style={{ color: "#888", fontWeight: 400, fontSize: 14 }}> × {selectedDot.reps} {HE.reps}</span>
+                  )}
+                </div>
+              </div>
+              <button onClick={() => setSelectedDot(null)} style={{
+                background: "none", border: "none", color: "#555",
+                cursor: "pointer", padding: 4, display: "flex", alignItems: "center",
+              }}>
+                <X size={16} />
+              </button>
+            </div>
+          )}
+        </>
       )}
     </div>
   );
