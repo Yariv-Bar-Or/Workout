@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { LineChart, Line, XAxis, YAxis, ResponsiveContainer } from "recharts";
+import { ComposedChart, Line, Scatter, XAxis, YAxis, ResponsiveContainer } from "recharts";
 import {
   ChevronLeft, Plus, Dumbbell, TrendingUp, X, Check,
   ChevronDown, ChevronUp, User, Zap, BarChart2, Calendar, Trash2
@@ -169,20 +169,6 @@ function Chart({ sessions }) {
   const xDomain = xMin === xMax ? [xMin - 86400000, xMax + 86400000] : [xMin, xMax];
   const xTicks = trendLine.map(d => d.x);
 
-  const unified = (() => {
-    const allXUniq = [...new Set(allDots.map(d => d.x))].sort((a, b) => a - b);
-    return allXUniq.map(x => {
-      const dots = allDots.filter(d => d.x === x);
-      const maxDot = dots.reduce((m, d) => d.y > m.y ? d : m, dots[0]);
-      return {
-        x,
-        y: maxDot.y,
-        dots,
-        label: maxDot.label,
-        reps: maxDot.reps,
-      };
-    });
-  })();
 
   return (
     <div style={{ marginTop: 12 }} dir="ltr">
@@ -210,10 +196,7 @@ function Chart({ sessions }) {
       ) : (
         <>
           <ResponsiveContainer width="100%" height={160}>
-            <LineChart
-              data={unified}
-              margin={{ top: 4, right: 4, left: -24, bottom: 0 }}
-            >
+            <ComposedChart margin={{ top: 4, right: 4, left: -24, bottom: 0 }}>
               <XAxis
                 dataKey="x"
                 type="number"
@@ -226,66 +209,61 @@ function Chart({ sessions }) {
                 axisLine={false}
               />
               <YAxis
+                dataKey="y"
                 domain={yDomain}
                 tick={{ fill: "#555", fontSize: 10 }}
                 tickLine={false}
                 axisLine={false}
               />
               <Line
+                data={trendLine}
                 dataKey="y"
                 stroke="#ff6b35"
                 strokeWidth={2.5}
-                dot={(props) => {
-                  const { cx, cy, payload } = props;
-                  if (cx == null || cy == null) return null;
-                  const isDaySelected = selectedDot && selectedDot.x === payload.x;
-                  return (
-                    <g key={payload.x}>
-                      {payload.dots.map((dot, i) => {
-                        const dotCy = props.yAxis?.scale ? props.yAxis.scale(dot.y) : cy;
-                        return (
-                          <circle
-                            key={i}
-                            cx={cx}
-                            cy={dotCy}
-                            r={isDaySelected ? 6 : 4}
-                            fill="#ff6b35"
-                            stroke={isDaySelected ? "#fff" : "none"}
-                            strokeWidth={isDaySelected ? 2 : 0}
-                            style={{ cursor: "pointer" }}
-                            onClick={(e) => { e.stopPropagation(); setSelectedDot(isDaySelected ? null : payload); }}
-                          />
-                        );
-                      })}
-                    </g>
-                  );
-                }}
+                dot={false}
                 activeDot={false}
                 type="monotone"
                 isAnimationActive={false}
               />
-            </LineChart>
+              <Scatter
+                data={allDots}
+                shape={(props) => {
+                  const { cx, cy, payload } = props;
+                  if (cx == null || cy == null) return null;
+                  const isSelected = selectedDot &&
+                    selectedDot.x === payload.x &&
+                    selectedDot.y === payload.y;
+                  return (
+                    <circle
+                      cx={cx}
+                      cy={cy}
+                      r={isSelected ? 6 : 4}
+                      fill="#ff6b35"
+                      stroke={isSelected ? "#fff" : "none"}
+                      strokeWidth={isSelected ? 2 : 0}
+                      style={{ cursor: "pointer" }}
+                      onClick={(e) => { e.stopPropagation(); setSelectedDot(isSelected ? null : payload); }}
+                    />
+                  );
+                }}
+              />
+            </ComposedChart>
           </ResponsiveContainer>
 
           {selectedDot && (
             <div style={{
-              display: "flex", alignItems: "flex-start", justifyContent: "space-between",
+              display: "flex", alignItems: "center", justifyContent: "space-between",
               background: "rgba(255,255,255,0.06)", borderRadius: 10,
               padding: "10px 14px", marginTop: 10, direction: "rtl",
             }}>
               <div>
-                <div style={{ color: "#888", fontSize: 12, marginBottom: 4 }}>{selectedDot.label}</div>
-                {[...selectedDot.dots].sort((a, b) => b.y - a.y).map((dot, i) => (
-                  <div key={i} style={{ color: "#ff6b35", fontWeight: 700, fontSize: 16, marginBottom: 2 }}>
-                    {selectedDot.dots.length > 1 && (
-                      <span style={{ color: "#777", fontWeight: 500, fontSize: 12 }}>סט {i + 1}: </span>
-                    )}
-                    {dot.y} ק״ג
-                    {dot.reps != null && (
-                      <span style={{ color: "#aaa", fontWeight: 400, fontSize: 14 }}> × {dot.reps} חזרות</span>
-                    )}
-                  </div>
-                ))}
+                <div style={{ color: "#888", fontSize: 12, marginBottom: 2 }}>{selectedDot.label}</div>
+                <div style={{ color: "#ff6b35", fontWeight: 700, fontSize: 16 }}>
+                  {selectedDot.y} ק״ג
+                  {selectedDot.reps != null && (
+                    <span style={{ color: "#aaa", fontWeight: 400, fontSize: 14 }}> × {selectedDot.reps} חזרות</span>
+                  )}
+                </div>
               </div>
               <button onClick={() => setSelectedDot(null)} style={{
                 background: "none", border: "none", color: "#555",
