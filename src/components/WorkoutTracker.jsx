@@ -4,38 +4,11 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { LineChart, Line, XAxis, YAxis, ResponsiveContainer } from "recharts";
 import {
   ChevronLeft, Plus, Dumbbell, TrendingUp, X, Check,
-  ChevronDown, ChevronUp, User, Zap, BarChart2, Calendar, Trash2
+  ChevronDown, ChevronUp, User, Zap, BarChart2, Calendar, Trash2, Pencil
 } from "lucide-react";
-
-const SEED_EXERCISES = {
-  'חזה': [],
-  'גב': [],
-  'כתפיים': [],
-  'רגליים': [],
-  'יד קדמית': [],
-  'יד אחורית': [],
-};
 
 function genId() {
   return crypto.randomUUID();
-}
-
-function seedExercises(profileId) {
-  const now = Date.now();
-  const exercises = [];
-  Object.entries(SEED_EXERCISES).forEach(([cat, names]) => {
-    names.forEach((name, i) => {
-      exercises.push({
-        id: genId(),
-        profile_id: profileId,
-        category: cat,
-        name,
-        sessions: [],
-        updated_at: now - (names.length - i) * 60000,
-      });
-    });
-  });
-  return exercises;
 }
 
 function useLocalDB() {
@@ -56,11 +29,9 @@ function useLocalDB() {
   const addProfile = useCallback((name) => {
     if (profiles.length >= 10) return null;
     const profile = { id: genId(), name, updated_at: Date.now() };
-    const exs = seedExercises(profile.id);
     const np = [...profiles, profile];
-    const ne = [...exercises, ...exs];
-    setProfiles(np); setExercises(ne);
-    persist(np, ne);
+    setProfiles(np);
+    persist(np, exercises);
     return profile;
   }, [profiles, exercises, persist]);
 
@@ -94,7 +65,43 @@ function useLocalDB() {
     return ex;
   }, [exercises, profiles, persist]);
 
-  return { profiles, exercises, addProfile, deleteProfile, updateExerciseWeight, addExercise };
+  const deleteSet = useCallback((exerciseId, session) => {
+    const now = Date.now();
+    let profileId = null;
+    const ne = exercises.map(e => {
+      if (e.id !== exerciseId) return e;
+      profileId = e.profile_id;
+      return { ...e, sessions: e.sessions.filter(s => s !== session), updated_at: now };
+    });
+    const np = profiles.map(p =>
+      p.id === profileId ? { ...p, updated_at: now } : p
+    );
+    setProfiles(np); setExercises(ne);
+    persist(np, ne);
+  }, [exercises, profiles, persist]);
+
+  const editSet = useCallback((exerciseId, session, weight, reps, ts) => {
+    const now = Date.now();
+    let profileId = null;
+    const ne = exercises.map(e => {
+      if (e.id !== exerciseId) return e;
+      profileId = e.profile_id;
+      return {
+        ...e,
+        sessions: e.sessions.map(s =>
+          s === session ? { ...s, weight, reps: reps || null, date: ts } : s
+        ),
+        updated_at: now,
+      };
+    });
+    const np = profiles.map(p =>
+      p.id === profileId ? { ...p, updated_at: now } : p
+    );
+    setProfiles(np); setExercises(ne);
+    persist(np, ne);
+  }, [exercises, profiles, persist]);
+
+  return { profiles, exercises, addProfile, deleteProfile, updateExerciseWeight, addExercise, deleteSet, editSet };
 }
 
 function fmt(ts) {
@@ -351,12 +358,15 @@ function CategoryBadge({ cat }) {
   );
 }
 
-// CHANGE 1: ExerciseDetail gets reps input
-function ExerciseDetail({ exercise, onSave, onBack }) {
+function ExerciseDetail({ exercise, onSave, onDeleteSet, onEditSet, onBack }) {
   const [weight, setWeight] = useState("");
-  const [reps, setReps] = useState("");       // NEW
+  const [reps, setReps] = useState("");
   const [saved, setSaved] = useState(false);
   const [showChart, setShowChart] = useState(false);
+  const [editingSet, setEditingSet] = useState(null);
+  const [editWeight, setEditWeight] = useState("");
+  const [editReps, setEditReps] = useState("");
+  const [editDate, setEditDate] = useState("");
   const inputRef = useRef();
   const last = exercise.sessions[exercise.sessions.length - 1];
   const best = exercise.sessions.reduce((m, s) => Math.max(m, s.weight), 0);
@@ -461,6 +471,82 @@ function ExerciseDetail({ exercise, onSave, onBack }) {
         )}
       </div>
 
+      {exercise.sessions.length > 0 && (
+        <div style={{ marginBottom: 20 }}>
+          <div style={{ color: "#555", fontSize: 11, fontWeight: 700,
+            textTransform: "uppercase", marginBottom: 10 }}>סטים מתועדים</div>
+          {[...exercise.sessions].reverse().map((session, i) => (
+            <div key={i} style={{
+              display: "flex", alignItems: "center", justifyContent: "space-between",
+              background: "rgba(255,255,255,0.03)", borderRadius: 10,
+              padding: "10px 14px", marginBottom: 8, direction: "rtl",
+            }}>
+              {editingSet === session ? (
+                <div style={{ flex: 1, display: "flex", gap: 8, alignItems: "center" }}>
+                  <input type="number" value={editWeight} onChange={e => setEditWeight(e.target.value)}
+                    placeholder="משקל" style={{ width: 70, height: 36, background: "rgba(0,0,0,0.3)",
+                    border: "1px solid rgba(255,107,53,0.3)", borderRadius: 8, color: "#f0ede8",
+                    fontSize: 15, textAlign: "center", outline: "none" }} />
+                  <input type="number" value={editReps} onChange={e => setEditReps(e.target.value)}
+                    placeholder="חזרות" style={{ width: 70, height: 36, background: "rgba(0,0,0,0.3)",
+                    border: "1px solid rgba(255,107,53,0.15)", borderRadius: 8, color: "#f0ede8",
+                    fontSize: 15, textAlign: "center", outline: "none" }} />
+                  <input type="date" value={editDate} onChange={e => setEditDate(e.target.value)}
+                    style={{ flex: 1, height: 36, background: "rgba(0,0,0,0.3)",
+                    border: "1px solid rgba(255,107,53,0.15)", borderRadius: 8, color: "#f0ede8",
+                    fontSize: 13, outline: "none", padding: "0 8px" }} />
+                  <button onClick={() => {
+                    const w = parseFloat(editWeight);
+                    const r = editReps !== "" ? parseInt(editReps, 10) : null;
+                    const ts = new Date(editDate).setHours(12, 0, 0, 0);
+                    if (w > 0) { onEditSet(exercise.id, session, w, r, ts); setEditingSet(null); }
+                  }} style={{ width: 36, height: 36, borderRadius: 8, border: "none",
+                    background: "#22c55e", color: "#fff", cursor: "pointer",
+                    display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <Check size={16} />
+                  </button>
+                  <button onClick={() => setEditingSet(null)} style={{ width: 36, height: 36,
+                    borderRadius: 8, border: "1px solid rgba(255,255,255,0.1)",
+                    background: "transparent", color: "#666", cursor: "pointer",
+                    display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <X size={16} />
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <div>
+                    <span style={{ color: "#ff6b35", fontWeight: 700 }}>{session.weight} ק״ג</span>
+                    {session.reps != null && <span style={{ color: "#aaa", fontSize: 13 }}> × {session.reps}</span>}
+                    <span style={{ color: "#555", fontSize: 12, marginRight: 8 }}>{fmt(session.date)}</span>
+                  </div>
+                  <div style={{ display: "flex", gap: 6 }}>
+                    <button onClick={() => {
+                      setEditingSet(session);
+                      setEditWeight(session.weight.toString());
+                      setEditReps(session.reps != null ? session.reps.toString() : "");
+                      const d = new Date(session.date);
+                      setEditDate(d.toISOString().split("T")[0]);
+                    }} style={{ width: 32, height: 32, borderRadius: 8,
+                      border: "1px solid rgba(255,255,255,0.1)", background: "transparent",
+                      color: "#888", cursor: "pointer",
+                      display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      <Pencil size={14} />
+                    </button>
+                    <button onClick={() => onDeleteSet(exercise.id, session)}
+                      style={{ width: 32, height: 32, borderRadius: 8,
+                      border: "1px solid rgba(255,80,80,0.2)", background: "rgba(255,80,80,0.06)",
+                      color: "#e05555", cursor: "pointer",
+                      display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
       <button onClick={() => setShowChart(v => !v)} style={{
         width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between",
         background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)",
@@ -479,13 +565,13 @@ function ExerciseDetail({ exercise, onSave, onBack }) {
 }
 
 const CATS = [
-  { key: "push", label: "דחיפה", icon: "💪", desc: "חזה · כתפיים · יד אחורית", color: "#ff6b35" },
-  { key: "pull", label: "משיכה", icon: "🔄", desc: "גב · יד קדמית · כתף אחורית", color: "#4ecdc4" },
-  { key: "legs", label: "רגליים", icon: "🦵", desc: "ארבע ראשי · המסטרינג · ישבן", color: "#a78bfa" },
+  { key: "push", label: "דחיפה", desc: "חזה · כתפיים · יד אחורית", color: "#ff6b35" },
+  { key: "pull", label: "משיכה", desc: "גב · יד קדמית · כתף אחורית", color: "#4ecdc4" },
+  { key: "legs", label: "רגליים", desc: "ארבע ראשי · המסטרינג · ישבן", color: "#a78bfa" },
 ];
 
 export default function WorkoutTracker() {
-  const { profiles, exercises, addProfile, deleteProfile, updateExerciseWeight, addExercise } = useLocalDB();
+  const { profiles, exercises, addProfile, deleteProfile, updateExerciseWeight, addExercise, deleteSet, editSet } = useLocalDB();
   const [view, setView] = useState("profiles");
   const [selectedProfile, setSelectedProfile] = useState(null);
   const [selectedCat, setSelectedCat] = useState(null);
@@ -522,12 +608,31 @@ export default function WorkoutTracker() {
     setNewProfileName(""); setAddingProfile(false);
   }
 
-  // CHANGE 1: pass reps through
   function handleSaveWeight(exId, w, r) {
     updateExerciseWeight(exId, w, r);
     const updatedEx = {
       ...selectedExercise,
       sessions: [...selectedExercise.sessions, { weight: w, reps: r || null, date: Date.now() }]
+    };
+    setSelectedExercise(updatedEx);
+  }
+
+  function handleDeleteSet(exId, session) {
+    deleteSet(exId, session);
+    const updatedEx = {
+      ...selectedExercise,
+      sessions: selectedExercise.sessions.filter(s => s !== session)
+    };
+    setSelectedExercise(updatedEx);
+  }
+
+  function handleEditSet(exId, session, w, r, ts) {
+    editSet(exId, session, w, r, ts);
+    const updatedEx = {
+      ...selectedExercise,
+      sessions: selectedExercise.sessions.map(s =>
+        s === session ? { ...s, weight: w, reps: r || null, date: ts } : s
+      )
     };
     setSelectedExercise(updatedEx);
   }
@@ -552,6 +657,8 @@ export default function WorkoutTracker() {
         <ExerciseDetail
           exercise={{ ...live, ...selectedExercise, sessions: live.sessions }}
           onSave={handleSaveWeight}
+          onDeleteSet={handleDeleteSet}
+          onEditSet={handleEditSet}
           onBack={() => { setView("category"); setSelectedExercise(null); }}
         />
       </div>
@@ -571,7 +678,6 @@ export default function WorkoutTracker() {
         </button>
 
         <div style={{ marginBottom: 24 }}>
-          <div style={{ fontSize: 36, marginBottom: 4 }}>{catInfo.icon}</div>
           <h1 style={{ color: catInfo.color, fontSize: 32, fontWeight: 900, margin: 0 }}>{catInfo.label}</h1>
           <div style={{ color: "#555", fontSize: 14, marginTop: 4 }}>{catInfo.desc}</div>
         </div>
@@ -675,7 +781,6 @@ export default function WorkoutTracker() {
                 }}
               >
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 30, marginBottom: 6 }}>{cat.icon}</div>
                   <div style={{ color: cat.color, fontSize: 28, fontWeight: 900 }}>{cat.label}</div>
                   <div style={{ color: "#666", fontSize: 13, marginTop: 4 }}>{cat.desc}</div>
                   <div style={{ display: "flex", gap: 12, marginTop: 10 }}>
