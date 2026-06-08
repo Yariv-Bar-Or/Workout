@@ -45,7 +45,6 @@ function useLocalDB() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    if (!supabase) return
     async function load() {
       const [{ data: profileData }, { data: exerciseData }] = await Promise.all([
         supabase.from('profiles').select('*').order('created_at'),
@@ -59,7 +58,6 @@ function useLocalDB() {
   }, [])
 
   useEffect(() => {
-    if (!supabase) return
     const channel = supabase
       .channel('workout-sync')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, () => {
@@ -75,7 +73,6 @@ function useLocalDB() {
   }, [])
 
   const addProfile = useCallback(async (name) => {
-    if (!supabase) return
     if (profiles.length >= 10) return
     const id = genId()
     const newProfile = { id, name }
@@ -87,13 +84,11 @@ function useLocalDB() {
   }, [profiles])
 
   const deleteProfile = useCallback(async (profileId) => {
-    if (!supabase) return
     await supabase.from('exercises').delete().eq('profile_id', profileId)
     await supabase.from('profiles').delete().eq('id', profileId)
   }, []);
 
   const updateExerciseWeight = useCallback(async (exerciseId, weight, reps) => {
-    if (!supabase) return
     const now = Date.now();
     const exercise = exercises.find(e => e.id === exerciseId);
     if (!exercise) return;
@@ -102,7 +97,6 @@ function useLocalDB() {
   }, [exercises]);
 
   const addExercise = useCallback(async (profileId, category, name) => {
-    if (!supabase) return
     const ex = { id: genId(), profile_id: profileId, category, name, sessions: [], updated_at: Date.now() };
     await supabase.from('exercises').insert(ex)
   }, []);
