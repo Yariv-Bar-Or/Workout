@@ -251,8 +251,8 @@ function Chart({ sessions }) {
                   return (
                     <g key={payload.x}>
                       {payload.dots.map((dot, i) => {
-                        const cy = props.yAxis.scale(dot.y);
-                        if (cy == null) return null;
+                        const cy = props.yAxis?.scale?.(dot.y);
+                        if (cy == null || isNaN(cy)) return null;
                         const isSelected = selectedDot &&
                           selectedDot.x === dot.x &&
                           selectedDot.y === dot.y;
