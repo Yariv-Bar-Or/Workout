@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef } from "react";
-import { useSupabaseDB } from "@/hooks/useSupabaseDB";
+import { useSupabaseDB as useLocalDB } from '../hooks/useSupabaseDB';
 import { ComposedChart, Line, Customized, XAxis, YAxis, ResponsiveContainer } from "recharts";
 import {
   ChevronLeft, Plus, Dumbbell, TrendingUp, X, Check,
@@ -521,15 +521,8 @@ function ExerciseDetail({ exercise, onSave, onDeleteSet, onEditSet, onBack }) {
 }
 
 export default function WorkoutTracker() {
-  const { profiles, exercises, loading, addProfile, deleteProfile, updateExerciseWeight, addExercise, deleteSet, editSet } = useSupabaseDB();
+  const { profiles, exercises, loading, addProfile, deleteProfile, updateExerciseWeight, addExercise, deleteSet, editSet } = useLocalDB();
   const [view, setView] = useState("profiles");
-
-  if (loading) return (
-    <div style={{ minHeight: "100vh", background: "#0f0f0f", display: "flex", alignItems: "center", justifyContent: "center" }}>
-      <div style={{ width: 36, height: 36, border: "3px solid #333", borderTopColor: "#ff6b35", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-    </div>
-  );
   const [selectedProfile, setSelectedProfile] = useState(null);
   const [selectedCat, setSelectedCat] = useState(null);
   const [selectedExercise, setSelectedExercise] = useState(null);
@@ -537,6 +530,8 @@ export default function WorkoutTracker() {
   const [newProfileName, setNewProfileName] = useState("");
   const [addingExercise, setAddingExercise] = useState(false);
   const [newExerciseName, setNewExerciseName] = useState("");
+
+  if (loading) return <div style={{ minHeight: "100vh", background: "#0f0f0f", display: "flex", alignItems: "center", justifyContent: "center", color: "#ff6b35", fontSize: 18 }}>טוען...</div>;
 
   const sortedProfiles = [...profiles].sort((a, b) => b.updated_at - a.updated_at);
 
