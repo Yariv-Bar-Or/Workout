@@ -8,8 +8,6 @@ import {
   ChevronDown, ChevronUp, Zap, BarChart2, Trash2, Pencil
 } from "lucide-react";
 
-
-
 function fmt(ts) {
   if (!ts) return "";
   const d = new Date(ts);
@@ -155,10 +153,7 @@ function Chart({ sessions }) {
       ) : (
         <>
           <ResponsiveContainer width="100%" height={200}>
-            <ComposedChart
-              data={trendLine}
-              margin={MARGIN}
-            >
+            <ComposedChart data={trendLine} margin={MARGIN}>
               <XAxis
                 dataKey="x"
                 type="number"
@@ -196,9 +191,7 @@ function Chart({ sessions }) {
               padding: "10px 14px", marginTop: 10, direction: "rtl",
             }}>
               <div>
-                <div style={{ color: "#888", fontSize: 12, marginBottom: 2 }}>
-                  {selectedDot.label}
-                </div>
+                <div style={{ color: "#888", fontSize: 12, marginBottom: 2 }}>{selectedDot.label}</div>
                 <div style={{ color: "#ff6b35", fontWeight: 700, fontSize: 16 }}>
                   {selectedDot.y} ק״ג
                   {selectedDot.reps != null && (
@@ -210,8 +203,7 @@ function Chart({ sessions }) {
               </div>
               <button onClick={() => setSelectedDot(null)} style={{
                 background: "none", border: "none", color: "#555",
-                cursor: "pointer", padding: 4,
-                display: "flex", alignItems: "center",
+                cursor: "pointer", padding: 4, display: "flex", alignItems: "center",
               }}>
                 <X size={16} />
               </button>
@@ -237,48 +229,6 @@ function CategoryBadge({ cat }) {
       background: cfg.bg, color: "#fff", fontSize: 11, fontWeight: 800,
       padding: "2px 8px", borderRadius: 4,
     }}>{cfg.label}</span>
-  );
-}
-
-function ProfileCard({ profile, onClick, onDelete, rank }) {
-  const initials = profile.name.slice(0, 2);
-  const colors = ["#ff6b35", "#4ecdc4", "#a78bfa"];
-  const color = colors[rank % colors.length];
-  return (
-    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-      <button onClick={onClick} style={{
-        display: "flex", alignItems: "center", gap: 14,
-        flex: 1, padding: "14px 16px",
-        background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)",
-        borderRadius: 16, cursor: "pointer", textAlign: "right",
-        WebkitTapHighlightColor: "transparent",
-      }}>
-        <div style={{
-          width: 46, height: 46, borderRadius: "50%",
-          background: color + "22", border: `2px solid ${color}`,
-          display: "flex", alignItems: "center", justifyContent: "center",
-          fontWeight: 800, fontSize: 16, color, flexShrink: 0,
-        }}>{initials}</div>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ color: "#f0ede8", fontWeight: 700, fontSize: 17, marginBottom: 2 }}>{profile.name}</div>
-          <div style={{ color: "#888", fontSize: 13 }}>פעיל/ה {fmtRelative(profile.updated_at)}</div>
-        </div>
-        {rank === 0 && (
-          <span style={{ fontSize: 11, fontWeight: 800, color: "#ff6b35", opacity: 0.8 }}>הכי פעיל/ה</span>
-        )}
-      </button>
-      <button
-        onClick={(e) => { e.stopPropagation(); onDelete(); }}
-        style={{
-          width: 40, height: 40, borderRadius: 12, border: "1px solid rgba(255,80,80,0.25)",
-          background: "rgba(255,80,80,0.08)", color: "#e05555",
-          display: "flex", alignItems: "center", justifyContent: "center",
-          cursor: "pointer", flexShrink: 0,
-        }}
-      >
-        <Trash2 size={16} />
-      </button>
-    </div>
   );
 }
 
@@ -520,44 +470,23 @@ function ExerciseDetail({ exercise, onSave, onDeleteSet, onEditSet, onBack }) {
   );
 }
 
-export default function WorkoutTracker() {
-  const { profiles, exercises, loading, addProfile, deleteProfile, updateExerciseWeight, addExercise, deleteSet, editSet } = useLocalDB();
-  const [view, setView] = useState("profiles");
-  const [selectedProfile, setSelectedProfile] = useState(null);
+export default function WorkoutTracker({ user }) {
+  const { exercises, loading, addExercise, updateExerciseWeight, deleteSet, editSet } = useLocalDB(user);
+  const [view, setView] = useState("dashboard");
   const [selectedCat, setSelectedCat] = useState(null);
   const [selectedExercise, setSelectedExercise] = useState(null);
-  const [addingProfile, setAddingProfile] = useState(false);
-  const [newProfileName, setNewProfileName] = useState("");
   const [addingExercise, setAddingExercise] = useState(false);
   const [newExerciseName, setNewExerciseName] = useState("");
 
-  if (loading) return <div style={{ minHeight: "100vh", background: "#0f0f0f", display: "flex", alignItems: "center", justifyContent: "center", color: "#ff6b35", fontSize: 18 }}>טוען...</div>;
-
-  const sortedProfiles = [...profiles].sort((a, b) => b.updated_at - a.updated_at);
+  if (loading) return (
+    <div style={{ minHeight: "100vh", background: "#0f0f0f", display: "flex", alignItems: "center", justifyContent: "center", color: "#ff6b35", fontSize: 18 }}>
+      טוען...
+    </div>
+  );
 
   const catExercises = exercises
-    .filter(e => e.profile_id === selectedProfile?.id && e.category === selectedCat)
+    .filter(e => e.category === selectedCat)
     .sort((a, b) => b.updated_at - a.updated_at);
-
-  function handleSelectProfile(p) {
-    setSelectedProfile(p); setView("dashboard");
-  }
-
-  function handleDeleteProfile(profileId) {
-    if (!window.confirm("למחוק את הפרופיל וכל הנתונים שלו?")) return;
-    deleteProfile(profileId);
-    if (selectedProfile?.id === profileId) {
-      setSelectedProfile(null);
-      setView("profiles");
-    }
-  }
-
-  function handleAddProfile() {
-    const name = newProfileName.trim();
-    if (!name) return;
-    const result = addProfile(name);
-    if (result) { setNewProfileName(""); setAddingProfile(false); }
-  }
 
   function handleSaveWeight(exId, w, r, ts) {
     updateExerciseWeight(exId, w, r, ts);
@@ -596,8 +525,8 @@ export default function WorkoutTracker() {
 
   function handleAddExercise() {
     const name = newExerciseName.trim();
-    if (!name || !selectedProfile || !selectedCat) return;
-    addExercise(selectedProfile.id, selectedCat, name);
+    if (!name || !selectedCat) return;
+    addExercise(selectedCat, name);
     setNewExerciseName(""); setAddingExercise(false);
   }
 
@@ -631,7 +560,7 @@ export default function WorkoutTracker() {
           background: "none", border: "none", color: catInfo.color,
           fontSize: 15, fontWeight: 600, cursor: "pointer", padding: 0, marginBottom: 20,
         }}>
-          <ChevronLeft size={18} style={{ transform: "rotate(180deg)" }} /> {selectedProfile?.name}
+          <ChevronLeft size={18} style={{ transform: "rotate(180deg)" }} /> ראשי
         </button>
 
         <div style={{ marginBottom: 24 }}>
@@ -692,70 +621,6 @@ export default function WorkoutTracker() {
     );
   }
 
-  if (view === "dashboard" && selectedProfile) {
-    return (
-      <div style={{ ...BG, padding: "52px 20px 32px" }}>
-        <button onClick={() => setView("profiles")} style={{
-          display: "flex", alignItems: "center", gap: 6,
-          background: "none", border: "none", color: "#ff6b35",
-          fontSize: 15, fontWeight: 600, cursor: "pointer", padding: 0, marginBottom: 20,
-        }}>
-          <ChevronLeft size={18} style={{ transform: "rotate(180deg)" }} /> כל הפרופילים
-        </button>
-
-        <div style={{ marginBottom: 32 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
-            <div style={{
-              width: 40, height: 40, borderRadius: "50%",
-              background: "#ff6b3522", border: "2px solid #ff6b35",
-              display: "flex", alignItems: "center", justifyContent: "center",
-              fontWeight: 800, fontSize: 14, color: "#ff6b35",
-            }}>
-              {selectedProfile.name.slice(0, 2)}
-            </div>
-            <div>
-              <h1 style={{ color: "#f0ede8", fontSize: 22, fontWeight: 800, margin: 0 }}>{selectedProfile.name}</h1>
-              <div style={{ color: "#555", fontSize: 13 }}>בחר סוג אימון</div>
-            </div>
-          </div>
-        </div>
-
-        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-          {CATS.map(cat => {
-            const exs = exercises.filter(e => e.profile_id === selectedProfile.id && e.category === cat.key);
-            const withData = exs.filter(e => e.sessions.length > 0);
-            return (
-              <button key={cat.key} onClick={() => { setSelectedCat(cat.key); setView("category"); }}
-                style={{
-                  display: "flex", alignItems: "center",
-                  background: `${cat.color}15`,
-                  border: `1px solid ${cat.color}30`,
-                  borderRadius: 20, padding: "20px 20px",
-                  cursor: "pointer", textAlign: "right",
-                  WebkitTapHighlightColor: "transparent",
-                }}
-              >
-                <div style={{ flex: 1 }}>
-                  <div style={{ color: cat.color, fontSize: 28, fontWeight: 900 }}>{cat.label}</div>
-                  <div style={{ color: "#666", fontSize: 13, marginTop: 4 }}>{cat.desc}</div>
-                  <div style={{ display: "flex", gap: 12, marginTop: 10 }}>
-                    <span style={{ color: "#555", fontSize: 12 }}>
-                      <span style={{ color: cat.color, fontWeight: 700 }}>{exs.length}</span> תרגילים
-                    </span>
-                    <span style={{ color: "#555", fontSize: 12 }}>
-                      <span style={{ color: cat.color, fontWeight: 700 }}>{withData.length}</span> רשומים
-                    </span>
-                  </div>
-                </div>
-                <ChevronLeft size={22} color={cat.color} style={{ transform: "rotate(180deg)", opacity: 0.6 }} />
-              </button>
-            );
-          })}
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div style={{ ...BG, padding: "52px 20px 32px" }}>
       <div style={{ marginBottom: 32 }}>
@@ -763,75 +628,44 @@ export default function WorkoutTracker() {
           <Dumbbell size={24} color="#ff6b35" />
           <span style={{ color: "#ff6b35", fontSize: 12, fontWeight: 800, letterSpacing: 2 }}>IRON LOG</span>
         </div>
-        <h1 style={{ color: "#f0ede8", fontSize: 34, fontWeight: 900, margin: 0, lineHeight: 1.2 }}>
-          מי מתאמן<br />היום?
+        <h1 style={{ color: "#f0ede8", fontSize: 28, fontWeight: 900, margin: 0, lineHeight: 1.3 }}>
+          ברוך הבא, {user?.user_metadata?.name}! 💪
         </h1>
+        <div style={{ color: "#555", fontSize: 14, marginTop: 6 }}>בהצלחה באימון!</div>
       </div>
 
-      <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 20 }}>
-        {sortedProfiles.map((p, i) => (
-          <ProfileCard
-            key={p.id}
-            profile={p}
-            rank={i}
-            onClick={() => handleSelectProfile(p)}
-            onDelete={() => handleDeleteProfile(p.id)}
-          />
-        ))}
+      <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+        {CATS.map(cat => {
+          const exs = exercises.filter(e => e.category === cat.key);
+          const withData = exs.filter(e => e.sessions.length > 0);
+          return (
+            <button key={cat.key} onClick={() => { setSelectedCat(cat.key); setView("category"); }}
+              style={{
+                display: "flex", alignItems: "center",
+                background: `${cat.color}15`,
+                border: `1px solid ${cat.color}30`,
+                borderRadius: 20, padding: "20px 20px",
+                cursor: "pointer", textAlign: "right",
+                WebkitTapHighlightColor: "transparent",
+              }}
+            >
+              <div style={{ flex: 1 }}>
+                <div style={{ color: cat.color, fontSize: 28, fontWeight: 900 }}>{cat.label}</div>
+                <div style={{ color: "#666", fontSize: 13, marginTop: 4 }}>{cat.desc}</div>
+                <div style={{ display: "flex", gap: 12, marginTop: 10 }}>
+                  <span style={{ color: "#555", fontSize: 12 }}>
+                    <span style={{ color: cat.color, fontWeight: 700 }}>{exs.length}</span> תרגילים
+                  </span>
+                  <span style={{ color: "#555", fontSize: 12 }}>
+                    <span style={{ color: cat.color, fontWeight: 700 }}>{withData.length}</span> רשומים
+                  </span>
+                </div>
+              </div>
+              <ChevronLeft size={22} color={cat.color} style={{ transform: "rotate(180deg)", opacity: 0.6 }} />
+            </button>
+          );
+        })}
       </div>
-
-      {profiles.length < 3 && (
-        addingProfile ? (
-          <div style={{
-            background: "rgba(255,107,53,0.06)", border: "1px solid rgba(255,107,53,0.2)",
-            borderRadius: 16, padding: 16,
-          }}>
-            <div style={{ color: "#888", fontSize: 12, fontWeight: 600, marginBottom: 10 }}>שם הפרופיל</div>
-            <div style={{ display: "flex", gap: 8 }}>
-              <input
-                autoFocus
-                value={newProfileName} onChange={e => setNewProfileName(e.target.value)}
-                onKeyDown={e => e.key === "Enter" && handleAddProfile()}
-                placeholder="לדוגמה: אלכס"
-                style={{
-                  flex: 1, height: 48, background: "rgba(0,0,0,0.3)",
-                  border: "1px solid rgba(255,107,53,0.3)", borderRadius: 10,
-                  color: "#f0ede8", fontSize: 16, padding: "0 14px", outline: "none",
-                  textAlign: "right"
-                }}
-              />
-              <button onClick={handleAddProfile} style={{
-                width: 48, height: 48, borderRadius: 10, border: "none",
-                background: "#ff6b35", color: "#fff", cursor: "pointer",
-                display: "flex", alignItems: "center", justifyContent: "center",
-              }}><Check size={20} /></button>
-              <button onClick={() => { setAddingProfile(false); setNewProfileName(""); }} style={{
-                width: 48, height: 48, borderRadius: 10, border: "1px solid rgba(255,255,255,0.1)",
-                background: "transparent", color: "#666", cursor: "pointer",
-                display: "flex", alignItems: "center", justifyContent: "center",
-              }}><X size={20} /></button>
-            </div>
-          </div>
-        ) : (
-          <button onClick={() => setAddingProfile(true)} style={{
-            width: "100%", height: 56, borderRadius: 16,
-            border: "1.5px dashed rgba(255,107,53,0.3)",
-            background: "rgba(255,107,53,0.04)",
-            color: "#ff6b35", fontSize: 16, fontWeight: 700,
-            display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
-            cursor: "pointer",
-          }}>
-            <Plus size={20} /> הוספת פרופיל {profiles.length > 0 && `(${3 - profiles.length} נשארו)`}
-          </button>
-        )
-      )}
-
-      {profiles.length === 0 && (
-        <div style={{ textAlign: "center", marginTop: 40, color: "#444" }}>
-          <Dumbbell size={40} color="#333" style={{ margin: "0 auto 12px" }} />
-          <div style={{ fontSize: 15 }}>הוסף פרופיל כדי להתחיל</div>
-        </div>
-      )}
     </div>
   );
 }
