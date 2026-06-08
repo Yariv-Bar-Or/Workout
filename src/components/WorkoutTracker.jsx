@@ -211,8 +211,11 @@ function Chart({ sessions }) {
       ) : (
         <>
           <ResponsiveContainer width="100%" height={200}>
-            <ComposedChart margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+            <ComposedChart
+              margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
+            >
               <XAxis
+                xAxisId="main"
                 dataKey="x"
                 type="number"
                 scale="time"
@@ -231,6 +234,7 @@ function Chart({ sessions }) {
                 axisLine={false}
               />
               <Line
+                xAxisId="main"
                 data={trendLine}
                 dataKey="y"
                 stroke="#ff6b35"
@@ -241,6 +245,7 @@ function Chart({ sessions }) {
                 isAnimationActive={false}
               />
               <Scatter
+                xAxisId="main"
                 data={allDots}
                 isAnimationActive={false}
                 shape={(props) => {
@@ -258,9 +263,7 @@ function Chart({ sessions }) {
                       stroke="#ff6b35"
                       strokeWidth={2}
                       style={{ cursor: "pointer" }}
-                      onClick={() => setSelectedDot(
-                        isSelected ? null : payload
-                      )}
+                      onClick={() => setSelectedDot(isSelected ? null : payload)}
                     />
                   );
                 }}
