@@ -1,106 +1,14 @@
 "use client";
 
-import { useState, useCallback, useRef } from "react";
+import { useState, useRef } from "react";
+import { useSupabaseDB } from "@/hooks/useSupabaseDB";
 import { ComposedChart, Line, Customized, XAxis, YAxis, ResponsiveContainer } from "recharts";
 import {
   ChevronLeft, Plus, Dumbbell, TrendingUp, X, Check,
   ChevronDown, ChevronUp, Zap, BarChart2, Trash2, Pencil
 } from "lucide-react";
 
-function genId() {
-  return Math.random().toString(36).slice(2) + Date.now().toString(36);
-}
 
-function useLocalDB() {
-  const [profiles, setProfiles] = useState(() => {
-    try { return JSON.parse(localStorage.getItem("wt_profiles") || "[]"); } catch { return []; }
-  });
-  const [exercises, setExercises] = useState(() => {
-    try { return JSON.parse(localStorage.getItem("wt_exercises") || "[]"); } catch { return []; }
-  });
-
-  const persist = useCallback((p, e) => {
-    try {
-      localStorage.setItem("wt_profiles", JSON.stringify(p));
-      localStorage.setItem("wt_exercises", JSON.stringify(e));
-    } catch {}
-  }, []);
-
-  const addProfile = useCallback((name) => {
-    if (profiles.length >= 3) return null;
-    const profile = { id: genId(), name, updated_at: Date.now() };
-    const np = [...profiles, profile];
-    setProfiles(np);
-    persist(np, exercises);
-    return profile;
-  }, [profiles, exercises, persist]);
-
-  const deleteProfile = useCallback((profileId) => {
-    const np = profiles.filter(p => p.id !== profileId);
-    const ne = exercises.filter(e => e.profile_id !== profileId);
-    setProfiles(np); setExercises(ne);
-    persist(np, ne);
-  }, [profiles, exercises, persist]);
-
-  const updateExerciseWeight = useCallback((exerciseId, weight, reps, ts) => {
-    const now = Date.now();
-    let profileId = null;
-    const ne = exercises.map(e => {
-      if (e.id !== exerciseId) return e;
-      profileId = e.profile_id;
-      return { ...e, sessions: [...e.sessions, { weight, reps: reps || null, date: ts || now }], updated_at: now };
-    });
-    const np = profiles.map(p =>
-      p.id === profileId ? { ...p, updated_at: now } : p
-    );
-    setProfiles(np); setExercises(ne);
-    persist(np, ne);
-  }, [exercises, profiles, persist]);
-
-  const addExercise = useCallback((profileId, category, name) => {
-    const ex = { id: genId(), profile_id: profileId, category, name, sessions: [], updated_at: Date.now() };
-    const ne = [...exercises, ex];
-    setExercises(ne);
-    persist(profiles, ne);
-    return ex;
-  }, [exercises, profiles, persist]);
-
-  const deleteSet = useCallback((exerciseId, sessionIndex) => {
-    const now = Date.now();
-    let profileId = null;
-    const ne = exercises.map(e => {
-      if (e.id !== exerciseId) return e;
-      profileId = e.profile_id;
-      const newSessions = e.sessions.filter((_, i) => i !== sessionIndex);
-      return { ...e, sessions: newSessions, updated_at: now };
-    });
-    const np = profiles.map(p =>
-      p.id === profileId ? { ...p, updated_at: now } : p
-    );
-    setProfiles(np); setExercises(ne);
-    persist(np, ne);
-  }, [exercises, profiles, persist]);
-
-  const editSet = useCallback((exerciseId, sessionIndex, weight, reps, ts) => {
-    const now = Date.now();
-    let profileId = null;
-    const ne = exercises.map(e => {
-      if (e.id !== exerciseId) return e;
-      profileId = e.profile_id;
-      const newSessions = e.sessions.map((s, i) =>
-        i === sessionIndex ? { ...s, weight, reps: reps || null, date: ts } : s
-      );
-      return { ...e, sessions: newSessions, updated_at: now };
-    });
-    const np = profiles.map(p =>
-      p.id === profileId ? { ...p, updated_at: now } : p
-    );
-    setProfiles(np); setExercises(ne);
-    persist(np, ne);
-  }, [exercises, profiles, persist]);
-
-  return { profiles, exercises, addProfile, deleteProfile, updateExerciseWeight, addExercise, deleteSet, editSet };
-}
 
 function fmt(ts) {
   if (!ts) return "";
@@ -613,8 +521,15 @@ function ExerciseDetail({ exercise, onSave, onDeleteSet, onEditSet, onBack }) {
 }
 
 export default function WorkoutTracker() {
-  const { profiles, exercises, addProfile, deleteProfile, updateExerciseWeight, addExercise, deleteSet, editSet } = useLocalDB();
+  const { profiles, exercises, loading, addProfile, deleteProfile, updateExerciseWeight, addExercise, deleteSet, editSet } = useSupabaseDB();
   const [view, setView] = useState("profiles");
+
+  if (loading) return (
+    <div style={{ minHeight: "100vh", background: "#0f0f0f", display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <div style={{ width: 36, height: 36, border: "3px solid #333", borderTopColor: "#ff6b35", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+    </div>
+  );
   const [selectedProfile, setSelectedProfile] = useState(null);
   const [selectedCat, setSelectedCat] = useState(null);
   const [selectedExercise, setSelectedExercise] = useState(null);
