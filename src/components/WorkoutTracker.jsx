@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { supabase } from '@/lib/supabase'
 import { LineChart, Line, XAxis, YAxis, ResponsiveContainer } from "recharts";
 import {
   ChevronLeft, Plus, Dumbbell, TrendingUp, X, Check,
@@ -40,68 +39,62 @@ function seedExercises(profileId) {
 }
 
 function useLocalDB() {
-  const [profiles, setProfiles] = useState([])
-  const [exercises, setExercises] = useState([])
-  const [loading, setLoading] = useState(true)
+  const [profiles, setProfiles] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("wt_profiles") || "[]"); } catch { return []; }
+  });
+  const [exercises, setExercises] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("wt_exercises") || "[]"); } catch { return []; }
+  });
 
-  useEffect(() => {
-    async function load() {
-      const [{ data: profileData }, { data: exerciseData }] = await Promise.all([
-        supabase.from('profiles').select('*').order('created_at'),
-        supabase.from('exercises').select('*').order('created_at'),
-      ])
-      if (profileData)  setProfiles(profileData)
-      if (exerciseData) setExercises(exerciseData)
-      setLoading(false)
-    }
-    load()
-  }, [])
-
-  useEffect(() => {
-    const channel = supabase
-      .channel('workout-sync')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, () => {
-        supabase.from('profiles').select('*').order('created_at')
-          .then(({ data }) => { if (data) setProfiles(data) })
-      })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'exercises' }, () => {
-        supabase.from('exercises').select('*').order('created_at')
-          .then(({ data }) => { if (data) setExercises(data) })
-      })
-      .subscribe()
-    return () => supabase.removeChannel(channel)
-  }, [])
-
-  const addProfile = useCallback(async (name) => {
-    if (profiles.length >= 10) return
-    const id = genId()
-    const newProfile = { id, name }
-    const defaultExercises = seedExercises(id)
-    const { error: pe } = await supabase.from('profiles').insert(newProfile)
-    if (pe) return
-    const { error: ee } = await supabase.from('exercises').insert(defaultExercises)
-    if (ee) console.error(ee)
-  }, [profiles])
-
-  const deleteProfile = useCallback(async (profileId) => {
-    await supabase.from('exercises').delete().eq('profile_id', profileId)
-    await supabase.from('profiles').delete().eq('id', profileId)
+  const persist = useCallback((p, e) => {
+    try {
+      localStorage.setItem("wt_profiles", JSON.stringify(p));
+      localStorage.setItem("wt_exercises", JSON.stringify(e));
+    } catch {}
   }, []);
 
-  const updateExerciseWeight = useCallback(async (exerciseId, weight, reps) => {
+  const addProfile = useCallback((name) => {
+    if (profiles.length >= 10) return null;
+    const profile = { id: genId(), name, updated_at: Date.now() };
+    const exs = seedExercises(profile.id);
+    const np = [...profiles, profile];
+    const ne = [...exercises, ...exs];
+    setProfiles(np); setExercises(ne);
+    persist(np, ne);
+    return profile;
+  }, [profiles, exercises, persist]);
+
+  const deleteProfile = useCallback((profileId) => {
+    const np = profiles.filter(p => p.id !== profileId);
+    const ne = exercises.filter(e => e.profile_id !== profileId);
+    setProfiles(np); setExercises(ne);
+    persist(np, ne);
+  }, [profiles, exercises, persist]);
+
+  const updateExerciseWeight = useCallback((exerciseId, weight, reps) => {
     const now = Date.now();
-    const exercise = exercises.find(e => e.id === exerciseId);
-    if (!exercise) return;
-    const updatedSessions = [...(exercise.sessions || []), { weight, reps: reps || null, date: now }];
-    await supabase.from('exercises').update({ sessions: updatedSessions, updated_at: now }).eq('id', exerciseId)
-  }, [exercises]);
+    let profileId = null;
+    const ne = exercises.map(e => {
+      if (e.id !== exerciseId) return e;
+      profileId = e.profile_id;
+      return { ...e, sessions: [...e.sessions, { weight, reps: reps || null, date: now }], updated_at: now };
+    });
+    const np = profiles.map(p =>
+      p.id === profileId ? { ...p, updated_at: now } : p
+    );
+    setProfiles(np); setExercises(ne);
+    persist(np, ne);
+  }, [exercises, profiles, persist]);
 
-  const addExercise = useCallback(async (profileId, category, name) => {
+  const addExercise = useCallback((profileId, category, name) => {
     const ex = { id: genId(), profile_id: profileId, category, name, sessions: [], updated_at: Date.now() };
-    await supabase.from('exercises').insert(ex)
-  }, []);
+    const ne = [...exercises, ex];
+    setExercises(ne);
+    persist(profiles, ne);
+    return ex;
+  }, [exercises, profiles, persist]);
 
-  return { profiles, exercises, loading, addProfile, deleteProfile, updateExerciseWeight, addExercise };
+  return { profiles, exercises, addProfile, deleteProfile, updateExerciseWeight, addExercise };
 }
 
 function fmt(ts) {
