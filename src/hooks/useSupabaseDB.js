@@ -20,17 +20,19 @@ export function useSupabaseDB(user) {
       .from('exercises')
       .select('*')
       .eq('user_id', user.id)
-      .then(({ data }) => {
+      .then(({ data, error }) => {
+        if (error) console.error('Supabase error:', error);
         setExercises(data || []);
         setLoading(false);
       });
-  }, [user]);
+  }, [user?.id]);
 
   const addExercise = useCallback(async (category, name) => {
     if (!user) return;
     const ex = { id: genId(), user_id: user.id, category, name, sessions: [], updated_at: Date.now() };
     setExercises(prev => [...prev, ex]);
-    await supabase.from('exercises').insert(ex);
+    await supabase.from('exercises').insert(ex)
+      .then(({ error }) => { if (error) console.error('Supabase error:', error); });
     return ex;
   }, [user]);
 
@@ -40,7 +42,8 @@ export function useSupabaseDB(user) {
     setExercises(prev => prev.map(e => {
       if (e.id !== exerciseId) return e;
       const updated = { ...e, sessions: [...e.sessions, { weight, reps: reps || null, date: ts || now }], updated_at: now };
-      supabase.from('exercises').update({ sessions: updated.sessions, updated_at: now }).eq('id', exerciseId).eq('user_id', user.id);
+      supabase.from('exercises').update({ sessions: updated.sessions, updated_at: now }).eq('id', exerciseId).eq('user_id', user.id)
+        .then(({ error }) => { if (error) console.error('Supabase error:', error); });
       return updated;
     }));
   }, [user]);
@@ -51,7 +54,8 @@ export function useSupabaseDB(user) {
     setExercises(prev => prev.map(e => {
       if (e.id !== exerciseId) return e;
       const updated = { ...e, sessions: e.sessions.filter((_, i) => i !== sessionIndex), updated_at: now };
-      supabase.from('exercises').update({ sessions: updated.sessions, updated_at: now }).eq('id', exerciseId).eq('user_id', user.id);
+      supabase.from('exercises').update({ sessions: updated.sessions, updated_at: now }).eq('id', exerciseId).eq('user_id', user.id)
+        .then(({ error }) => { if (error) console.error('Supabase error:', error); });
       return updated;
     }));
   }, [user]);
@@ -62,7 +66,8 @@ export function useSupabaseDB(user) {
     setExercises(prev => prev.map(e => {
       if (e.id !== exerciseId) return e;
       const updated = { ...e, sessions: e.sessions.map((s, i) => i === sessionIndex ? { ...s, weight, reps: reps || null, date: ts } : s), updated_at: now };
-      supabase.from('exercises').update({ sessions: updated.sessions, updated_at: now }).eq('id', exerciseId).eq('user_id', user.id);
+      supabase.from('exercises').update({ sessions: updated.sessions, updated_at: now }).eq('id', exerciseId).eq('user_id', user.id)
+        .then(({ error }) => { if (error) console.error('Supabase error:', error); });
       return updated;
     }));
   }, [user]);
