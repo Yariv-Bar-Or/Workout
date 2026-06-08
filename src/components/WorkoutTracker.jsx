@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback, useRef } from "react";
-import { ComposedChart, Line, Scatter, XAxis, YAxis, ResponsiveContainer, Tooltip } from "recharts";
+import { ComposedChart, Line, Customized, XAxis, YAxis, ResponsiveContainer } from "recharts";
 import {
   ChevronLeft, Plus, Dumbbell, TrendingUp, X, Check,
   ChevronDown, ChevronUp, Zap, BarChart2, Trash2, Pencil
@@ -185,6 +185,42 @@ function Chart({ sessions }) {
     : [xMin, xMax];
   const xTicks = trendLine.map(d => d.x);
 
+  const MARGIN = { top: 10, right: 10, left: -20, bottom: 0 };
+
+  const DotsLayer = (props) => {
+    const { xAxisMap, yAxisMap } = props;
+    if (!xAxisMap || !yAxisMap) return null;
+    const xAxis = Object.values(xAxisMap)[0];
+    const yAxis = Object.values(yAxisMap)[0];
+    if (!xAxis?.scale || !yAxis?.scale) return null;
+
+    return (
+      <g>
+        {allDots.map((dot, i) => {
+          const cx = xAxis.scale(dot.x);
+          const cy = yAxis.scale(dot.y);
+          if (cx == null || cy == null || isNaN(cx) || isNaN(cy)) return null;
+          const isSelected = selectedDot &&
+            selectedDot.x === dot.x &&
+            selectedDot.y === dot.y;
+          return (
+            <circle
+              key={i}
+              cx={cx}
+              cy={cy}
+              r={isSelected ? 7 : 5}
+              fill={isSelected ? "#fff" : "#ff6b35"}
+              stroke="#ff6b35"
+              strokeWidth={2}
+              style={{ cursor: "pointer" }}
+              onClick={() => setSelectedDot(isSelected ? null : dot)}
+            />
+          );
+        })}
+      </g>
+    );
+  };
+
   return (
     <div style={{ marginTop: 12 }} dir="ltr">
       <div style={{ display: "flex", gap: 6, marginBottom: 12 }} dir="rtl">
@@ -212,10 +248,10 @@ function Chart({ sessions }) {
         <>
           <ResponsiveContainer width="100%" height={200}>
             <ComposedChart
-              margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
+              data={trendLine}
+              margin={MARGIN}
             >
               <XAxis
-                xAxisId="main"
                 dataKey="x"
                 type="number"
                 scale="time"
@@ -227,15 +263,12 @@ function Chart({ sessions }) {
                 axisLine={false}
               />
               <YAxis
-                type="number"
                 domain={yDomain}
                 tick={{ fill: "#555", fontSize: 10 }}
                 tickLine={false}
                 axisLine={false}
               />
               <Line
-                xAxisId="main"
-                data={trendLine}
                 dataKey="y"
                 stroke="#ff6b35"
                 strokeWidth={2}
@@ -244,30 +277,7 @@ function Chart({ sessions }) {
                 type="monotone"
                 isAnimationActive={false}
               />
-              <Scatter
-                xAxisId="main"
-                data={allDots}
-                isAnimationActive={false}
-                shape={(props) => {
-                  const { cx, cy, payload } = props;
-                  if (cx == null || cy == null) return null;
-                  const isSelected = selectedDot &&
-                    selectedDot.x === payload.x &&
-                    selectedDot.y === payload.y;
-                  return (
-                    <circle
-                      cx={cx}
-                      cy={cy}
-                      r={isSelected ? 7 : 5}
-                      fill={isSelected ? "#fff" : "#ff6b35"}
-                      stroke="#ff6b35"
-                      strokeWidth={2}
-                      style={{ cursor: "pointer" }}
-                      onClick={() => setSelectedDot(isSelected ? null : payload)}
-                    />
-                  );
-                }}
-              />
+              <Customized component={DotsLayer} />
             </ComposedChart>
           </ResponsiveContainer>
 
