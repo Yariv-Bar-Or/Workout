@@ -1,14 +1,14 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useCallback, useRef } from "react";
 import { LineChart, Line, XAxis, YAxis, ResponsiveContainer } from "recharts";
 import {
   ChevronLeft, Plus, Dumbbell, TrendingUp, X, Check,
-  ChevronDown, ChevronUp, User, Zap, BarChart2, Calendar, Trash2, Pencil
+  ChevronDown, ChevronUp, Zap, BarChart2, Trash2, Pencil
 } from "lucide-react";
 
 function genId() {
-  return crypto.randomUUID();
+  return Math.random().toString(36).slice(2) + Date.now().toString(36);
 }
 
 function useLocalDB() {
@@ -27,7 +27,7 @@ function useLocalDB() {
   }, []);
 
   const addProfile = useCallback((name) => {
-    if (profiles.length >= 10) return null;
+    if (profiles.length >= 3) return null;
     const profile = { id: genId(), name, updated_at: Date.now() };
     const np = [...profiles, profile];
     setProfiles(np);
@@ -42,13 +42,13 @@ function useLocalDB() {
     persist(np, ne);
   }, [profiles, exercises, persist]);
 
-  const updateExerciseWeight = useCallback((exerciseId, weight, reps) => {
+  const updateExerciseWeight = useCallback((exerciseId, weight, reps, ts) => {
     const now = Date.now();
     let profileId = null;
     const ne = exercises.map(e => {
       if (e.id !== exerciseId) return e;
       profileId = e.profile_id;
-      return { ...e, sessions: [...e.sessions, { weight, reps: reps || null, date: now }], updated_at: now };
+      return { ...e, sessions: [...e.sessions, { weight, reps: reps || null, date: ts || now }], updated_at: now };
     });
     const np = profiles.map(p =>
       p.id === profileId ? { ...p, updated_at: now } : p
@@ -65,13 +65,14 @@ function useLocalDB() {
     return ex;
   }, [exercises, profiles, persist]);
 
-  const deleteSet = useCallback((exerciseId, session) => {
+  const deleteSet = useCallback((exerciseId, sessionIndex) => {
     const now = Date.now();
     let profileId = null;
     const ne = exercises.map(e => {
       if (e.id !== exerciseId) return e;
       profileId = e.profile_id;
-      return { ...e, sessions: e.sessions.filter(s => s !== session), updated_at: now };
+      const newSessions = e.sessions.filter((_, i) => i !== sessionIndex);
+      return { ...e, sessions: newSessions, updated_at: now };
     });
     const np = profiles.map(p =>
       p.id === profileId ? { ...p, updated_at: now } : p
@@ -80,19 +81,16 @@ function useLocalDB() {
     persist(np, ne);
   }, [exercises, profiles, persist]);
 
-  const editSet = useCallback((exerciseId, session, weight, reps, ts) => {
+  const editSet = useCallback((exerciseId, sessionIndex, weight, reps, ts) => {
     const now = Date.now();
     let profileId = null;
     const ne = exercises.map(e => {
       if (e.id !== exerciseId) return e;
       profileId = e.profile_id;
-      return {
-        ...e,
-        sessions: e.sessions.map(s =>
-          s === session ? { ...s, weight, reps: reps || null, date: ts } : s
-        ),
-        updated_at: now,
-      };
+      const newSessions = e.sessions.map((s, i) =>
+        i === sessionIndex ? { ...s, weight, reps: reps || null, date: ts } : s
+      );
+      return { ...e, sessions: newSessions, updated_at: now };
     });
     const np = profiles.map(p =>
       p.id === profileId ? { ...p, updated_at: now } : p
@@ -124,7 +122,7 @@ const TIMEFRAMES = [
   { key: "3m", label: "3 חודשים" },
   { key: "6m", label: "חצי שנה" },
   { key: "1y", label: "שנה" },
-  { key: "All", label: "הכל" }
+  { key: "All", label: "הכל" },
 ];
 
 function filterByTimeframe(sessions, tf) {
@@ -134,6 +132,14 @@ function filterByTimeframe(sessions, tf) {
   return sessions.filter(s => s.date >= cutoff);
 }
 
+const CATS = [
+  { key: "chest",     label: "חזה",       desc: "לחיצות · פרפר · כבלים",        color: "#ff6b35" },
+  { key: "back",      label: "גב",        desc: "מתח · חתירה · פולי",            color: "#4ecdc4" },
+  { key: "shoulders", label: "כתפיים",    desc: "לחיצה · הרמות צד · פייס פולס", color: "#a78bfa" },
+  { key: "biceps",    label: "יד קדמית",  desc: "כפיפות · פטיש · כבל",           color: "#f7dc6f" },
+  { key: "triceps",   label: "יד אחורית", desc: "פושדאון · ג׳פרי · מקבילים",    color: "#82e0aa" },
+  { key: "legs",      label: "רגליים",    desc: "סקוואט · לאנג׳ · לג קרל",      color: "#85c1e9" },
+];
 
 function Chart({ sessions }) {
   const [tf, setTf] = useState("All");
@@ -146,47 +152,47 @@ function Chart({ sessions }) {
     return d.getTime();
   };
 
-  const daySetsMap = new Map();
+  const allDots = filtered.map(s => ({
+    x: dayStart(s.date),
+    y: s.weight,
+    reps: s.reps ?? null,
+    label: fmt(s.date),
+  }));
+
+  const dayMap = new Map();
   filtered.forEach(s => {
     const dk = dayStart(s.date);
-    if (!daySetsMap.has(dk)) daySetsMap.set(dk, []);
-    daySetsMap.get(dk).push({
-      weight: s.weight,
-      reps: s.reps != null ? Number(s.reps) : null,
-    });
+    const prev = dayMap.get(dk);
+    if (!prev || s.weight > prev.y) {
+      dayMap.set(dk, { x: dk, y: s.weight, reps: s.reps ?? null, label: fmt(s.date) });
+    }
   });
+  const trendLine = Array.from(dayMap.values()).sort((a, b) => a.x - b.x);
 
-  const lineData = Array.from(daySetsMap.entries())
-    .sort((a, b) => a[0] - b[0])
-    .map(([dk, sets]) => ({
-      x: dk,
-      y: Math.max(...sets.map(s => s.weight)),
-      label: fmt(dk),
-      sets: [...sets].sort((a, b) => b.weight - a.weight),
-    }));
+  const hasData = trendLine.length >= 1;
 
-  const hasData = lineData.length >= 1;
-  const weights = lineData.map(d => d.y);
-  const yMin = weights.length ? Math.min(...weights) : 0;
-  const yMax = weights.length ? Math.max(...weights) : 100;
+  const allWeights = allDots.map(d => d.y);
+  const yMin = allWeights.length ? Math.min(...allWeights) : 0;
+  const yMax = allWeights.length ? Math.max(...allWeights) : 100;
   const yPad = Math.max((yMax - yMin) * 0.2, 5);
+  const yDomain = [yMin - yPad, yMax + yPad];
 
-  const CustomDot = (props) => {
-    const { cx, cy, payload } = props;
-    if (cx == null || cy == null) return null;
-    const isSelected = selectedDot?.x === payload.x;
-    return (
-      <circle
-        cx={cx} cy={cy}
-        r={isSelected ? 7 : 5}
-        fill="#ff6b35"
-        stroke={isSelected ? "#fff" : "#0f0f0f"}
-        strokeWidth={2}
-        style={{ cursor: "pointer" }}
-        onClick={() => setSelectedDot(isSelected ? null : payload)}
-      />
-    );
-  };
+  const allX = trendLine.map(d => d.x);
+  const xMin = allX.length ? Math.min(...allX) : 0;
+  const xMax = allX.length ? Math.max(...allX) : 1;
+  const xDomain = xMin === xMax
+    ? [xMin - 86400000, xMax + 86400000]
+    : [xMin, xMax];
+  const xTicks = trendLine.map(d => d.x);
+
+  const unified = (() => {
+    const allXUniq = [...new Set(allDots.map(d => d.x))].sort((a, b) => a - b);
+    return allXUniq.map(x => {
+      const dots = allDots.filter(d => d.x === x);
+      const maxDot = dots.reduce((m, d) => d.y > m.y ? d : m, dots[0]);
+      return { x, y: maxDot.y, dots };
+    });
+  })();
 
   return (
     <div style={{ marginTop: 12 }} dir="ltr">
@@ -202,7 +208,10 @@ function Chart({ sessions }) {
       </div>
 
       {!hasData ? (
-        <div style={{ height: 160, display: "flex", alignItems: "center", justifyContent: "center", color: "#444", fontSize: 14 }} dir="rtl">
+        <div style={{
+          height: 160, display: "flex", alignItems: "center", justifyContent: "center",
+          color: "#444", fontSize: 14,
+        }} dir="rtl">
           <div style={{ textAlign: "center" }}>
             <BarChart2 size={32} color="#333" style={{ marginBottom: 8 }} />
             <div>רשום אימונים כדי לראות את גרף ההתקדמות שלך</div>
@@ -211,19 +220,23 @@ function Chart({ sessions }) {
       ) : (
         <>
           <ResponsiveContainer width="100%" height={160}>
-            <LineChart data={lineData} margin={{ top: 8, right: 8, left: -24, bottom: 0 }}>
+            <LineChart
+              data={unified}
+              margin={{ top: 4, right: 4, left: -24, bottom: 0 }}
+            >
               <XAxis
                 dataKey="x"
                 type="number"
                 scale="time"
-                domain={["dataMin", "dataMax"]}
+                domain={xDomain}
+                ticks={xTicks}
                 tickFormatter={(v) => fmt(v)}
                 tick={{ fill: "#555", fontSize: 10 }}
                 tickLine={false}
                 axisLine={false}
               />
               <YAxis
-                domain={[yMin - yPad, yMax + yPad]}
+                domain={yDomain}
                 tick={{ fill: "#555", fontSize: 10 }}
                 tickLine={false}
                 axisLine={false}
@@ -232,9 +245,36 @@ function Chart({ sessions }) {
                 dataKey="y"
                 stroke="#ff6b35"
                 strokeWidth={2.5}
-                dot={<CustomDot />}
+                dot={(props) => {
+                  const { cx, payload } = props;
+                  if (cx == null || !payload?.dots) return null;
+                  return (
+                    <g key={payload.x}>
+                      {payload.dots.map((dot, i) => {
+                        const cy = props.yAxis.scale(dot.y);
+                        if (cy == null) return null;
+                        const isSelected = selectedDot &&
+                          selectedDot.x === dot.x &&
+                          selectedDot.y === dot.y;
+                        return (
+                          <circle
+                            key={i}
+                            cx={cx}
+                            cy={cy}
+                            r={isSelected ? 6 : 4}
+                            fill="#ff6b35"
+                            stroke={isSelected ? "#fff" : "none"}
+                            strokeWidth={isSelected ? 2 : 0}
+                            style={{ cursor: "pointer" }}
+                            onClick={() => setSelectedDot(isSelected ? null : dot)}
+                          />
+                        );
+                      })}
+                    </g>
+                  );
+                }}
                 activeDot={false}
-                type="linear"
+                type="monotone"
                 isAnimationActive={false}
               />
             </LineChart>
@@ -242,27 +282,27 @@ function Chart({ sessions }) {
 
           {selectedDot && (
             <div style={{
-              display: "flex", alignItems: "flex-start", justifyContent: "space-between",
+              display: "flex", alignItems: "center", justifyContent: "space-between",
               background: "rgba(255,255,255,0.06)", borderRadius: 10,
               padding: "10px 14px", marginTop: 10, direction: "rtl",
             }}>
               <div>
-                <div style={{ color: "#888", fontSize: 12, marginBottom: 6 }}>{selectedDot.label}</div>
-                {selectedDot.sets.map((set, i) => (
-                  <div key={i} style={{ color: "#ff6b35", fontWeight: 700, fontSize: 16, marginBottom: 2 }}>
-                    {selectedDot.sets.length > 1 && (
-                      <span style={{ color: "#666", fontWeight: 400, fontSize: 13 }}>סט {i + 1}: </span>
-                    )}
-                    {set.weight} ק״ג
-                    {set.reps != null && (
-                      <span style={{ color: "#aaa", fontWeight: 400, fontSize: 14 }}> × {set.reps} חזרות</span>
-                    )}
-                  </div>
-                ))}
+                <div style={{ color: "#888", fontSize: 12, marginBottom: 2 }}>
+                  {selectedDot.label}
+                </div>
+                <div style={{ color: "#ff6b35", fontWeight: 700, fontSize: 16 }}>
+                  {selectedDot.y} ק״ג
+                  {selectedDot.reps != null && (
+                    <span style={{ color: "#aaa", fontWeight: 400, fontSize: 14 }}>
+                      {" "}× {selectedDot.reps} חזרות
+                    </span>
+                  )}
+                </div>
               </div>
               <button onClick={() => setSelectedDot(null)} style={{
                 background: "none", border: "none", color: "#555",
-                cursor: "pointer", padding: 4, display: "flex", alignItems: "center",
+                cursor: "pointer", padding: 4,
+                display: "flex", alignItems: "center",
               }}>
                 <X size={16} />
               </button>
@@ -273,10 +313,27 @@ function Chart({ sessions }) {
     </div>
   );
 }
-// CHANGE 4: ProfileCard gets onDelete prop
+
+function CategoryBadge({ cat }) {
+  const cfg = {
+    chest:     { bg: "#ff6b35", label: "חזה" },
+    back:      { bg: "#4ecdc4", label: "גב" },
+    shoulders: { bg: "#a78bfa", label: "כתפיים" },
+    biceps:    { bg: "#f7dc6f", label: "יד קדמית" },
+    triceps:   { bg: "#82e0aa", label: "יד אחורית" },
+    legs:      { bg: "#85c1e9", label: "רגליים" },
+  }[cat] || { bg: "#888", label: cat };
+  return (
+    <span style={{
+      background: cfg.bg, color: "#fff", fontSize: 11, fontWeight: 800,
+      padding: "2px 8px", borderRadius: 4,
+    }}>{cfg.label}</span>
+  );
+}
+
 function ProfileCard({ profile, onClick, onDelete, rank }) {
   const initials = profile.name.slice(0, 2);
-  const colors = ["#ff6b35", "#4ecdc4", "#a78bfa", "#f7dc6f", "#82e0aa", "#85c1e9", "#f1948a", "#bb8fce", "#f0b27a", "#76d7c4"];
+  const colors = ["#ff6b35", "#4ecdc4", "#a78bfa"];
   const color = colors[rank % colors.length];
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -285,7 +342,7 @@ function ProfileCard({ profile, onClick, onDelete, rank }) {
         flex: 1, padding: "14px 16px",
         background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)",
         borderRadius: 16, cursor: "pointer", textAlign: "right",
-        transition: "all 0.15s", WebkitTapHighlightColor: "transparent",
+        WebkitTapHighlightColor: "transparent",
       }}>
         <div style={{
           width: 46, height: 46, borderRadius: "50%",
@@ -309,7 +366,6 @@ function ProfileCard({ profile, onClick, onDelete, rank }) {
           display: "flex", alignItems: "center", justifyContent: "center",
           cursor: "pointer", flexShrink: 0,
         }}
-        title="מחק פרופיל"
       >
         <Trash2 size={16} />
       </button>
@@ -325,7 +381,7 @@ function ExerciseRow({ exercise, onClick }) {
       width: "100%", padding: "14px 16px",
       background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)",
       borderRadius: 14, cursor: "pointer", textAlign: "right",
-      transition: "background 0.12s", WebkitTapHighlightColor: "transparent",
+      WebkitTapHighlightColor: "transparent",
     }}>
       <Dumbbell size={20} color="#555" style={{ flexShrink: 0 }} />
       <div style={{ flex: 1, minWidth: 0 }}>
@@ -344,26 +400,13 @@ function ExerciseRow({ exercise, onClick }) {
   );
 }
 
-function CategoryBadge({ cat }) {
-  const cfg = {
-    push: { bg: "#ff6b35", label: "דחיפה (PUSH)" },
-    pull: { bg: "#4ecdc4", label: "משיכה (PULL)" },
-    legs: { bg: "#a78bfa", label: "רגליים (LEGS)" },
-  }[cat] || { bg: "#888", label: cat };
-  return (
-    <span style={{
-      background: cfg.bg, color: "#fff", fontSize: 11, fontWeight: 800,
-      padding: "2px 8px", borderRadius: 4,
-    }}>{cfg.label}</span>
-  );
-}
-
 function ExerciseDetail({ exercise, onSave, onDeleteSet, onEditSet, onBack }) {
   const [weight, setWeight] = useState("");
   const [reps, setReps] = useState("");
+  const [date, setDate] = useState(() => new Date().toISOString().split("T")[0]);
   const [saved, setSaved] = useState(false);
   const [showChart, setShowChart] = useState(false);
-  const [editingSet, setEditingSet] = useState(null);
+  const [editingIndex, setEditingIndex] = useState(null);
   const [editWeight, setEditWeight] = useState("");
   const [editReps, setEditReps] = useState("");
   const [editDate, setEditDate] = useState("");
@@ -371,18 +414,21 @@ function ExerciseDetail({ exercise, onSave, onDeleteSet, onEditSet, onBack }) {
   const last = exercise.sessions[exercise.sessions.length - 1];
   const best = exercise.sessions.reduce((m, s) => Math.max(m, s.weight), 0);
 
-  useEffect(() => { inputRef.current?.focus(); }, []);
-
   function handleSave() {
     const w = parseFloat(weight);
     if (!w || w <= 0) return;
     const r = reps !== "" ? parseInt(reps, 10) : null;
-    onSave(exercise.id, w, r);
+    const ts = new Date(date).setHours(12, 0, 0, 0);
+    onSave(exercise.id, w, r, ts);
     setSaved(true);
     setWeight("");
     setReps("");
     setTimeout(() => setSaved(false), 1500);
   }
+
+  const reversedSessions = [...exercise.sessions]
+    .map((s, i) => ({ ...s, originalIndex: i }))
+    .reverse();
 
   return (
     <div>
@@ -424,10 +470,9 @@ function ExerciseDetail({ exercise, onSave, onDeleteSet, onEditSet, onBack }) {
         borderRadius: 16, padding: 20, marginBottom: 20,
       }}>
         <div style={{ color: "#ff6b35", fontSize: 12, fontWeight: 700, letterSpacing: 1, textTransform: "uppercase", marginBottom: 12 }}>
-          עדכון סט
+          תיעוד סט
         </div>
-        <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-          {/* Weight input */}
+        <div style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 10 }}>
           <input
             ref={inputRef}
             type="number" inputMode="decimal" placeholder="0.0"
@@ -441,8 +486,6 @@ function ExerciseDetail({ exercise, onSave, onDeleteSet, onEditSet, onBack }) {
             }}
           />
           <span style={{ color: "#777", fontSize: 14, fontWeight: 600, flexShrink: 0 }}>ק״ג</span>
-
-          {/* CHANGE 1: Reps input */}
           <input
             type="number" inputMode="numeric" placeholder="חזרות"
             value={reps} onChange={e => setReps(e.target.value)}
@@ -454,58 +497,62 @@ function ExerciseDetail({ exercise, onSave, onDeleteSet, onEditSet, onBack }) {
               outline: "none", padding: "0 8px",
             }}
           />
-
           <button onClick={handleSave} style={{
             width: 52, height: 52, borderRadius: 12, border: "none",
             background: saved ? "#22c55e" : "#ff6b35",
             color: "#fff", display: "flex", alignItems: "center", justifyContent: "center",
-            cursor: "pointer", transition: "background 0.2s", flexShrink: 0,
+            cursor: "pointer", flexShrink: 0,
           }}>
             {saved ? <Check size={22} /> : <Zap size={22} />}
           </button>
         </div>
-        {last && (
-          <div style={{ color: "#666", fontSize: 12, marginTop: 10, textAlign: "center" }}>
-            קודם: {last.weight} ק״ג{last.reps != null ? ` × ${last.reps}` : ""} ב-{fmt(last.date)}
-          </div>
-        )}
+        <input
+          type="date"
+          value={date}
+          onChange={e => setDate(e.target.value)}
+          style={{
+            width: "100%", height: 44, background: "rgba(0,0,0,0.3)",
+            border: "1px solid rgba(255,107,53,0.15)", borderRadius: 12,
+            color: "#f0ede8", fontSize: 15, textAlign: "center",
+            outline: "none", padding: "0 12px", boxSizing: "border-box",
+          }}
+        />
       </div>
 
       {exercise.sessions.length > 0 && (
         <div style={{ marginBottom: 20 }}>
-          <div style={{ color: "#555", fontSize: 11, fontWeight: 700,
-            textTransform: "uppercase", marginBottom: 10 }}>סטים מתועדים</div>
-          {[...exercise.sessions].reverse().map((session, i) => (
-            <div key={i} style={{
-              display: "flex", alignItems: "center", justifyContent: "space-between",
+          <div style={{ color: "#555", fontSize: 11, fontWeight: 700, textTransform: "uppercase", marginBottom: 10 }}>סטים מתועדים</div>
+          {reversedSessions.map(({ originalIndex, ...session }) => (
+            <div key={originalIndex} style={{
               background: "rgba(255,255,255,0.03)", borderRadius: 10,
               padding: "10px 14px", marginBottom: 8, direction: "rtl",
             }}>
-              {editingSet === session ? (
-                <div style={{ flex: 1, display: "flex", gap: 8, alignItems: "center" }}>
+              {editingIndex === originalIndex ? (
+                <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
                   <input type="number" value={editWeight} onChange={e => setEditWeight(e.target.value)}
                     placeholder="משקל" style={{ width: 70, height: 36, background: "rgba(0,0,0,0.3)",
                     border: "1px solid rgba(255,107,53,0.3)", borderRadius: 8, color: "#f0ede8",
                     fontSize: 15, textAlign: "center", outline: "none" }} />
+                  <span style={{ color: "#777", fontSize: 13 }}>ק״ג</span>
                   <input type="number" value={editReps} onChange={e => setEditReps(e.target.value)}
                     placeholder="חזרות" style={{ width: 70, height: 36, background: "rgba(0,0,0,0.3)",
                     border: "1px solid rgba(255,107,53,0.15)", borderRadius: 8, color: "#f0ede8",
                     fontSize: 15, textAlign: "center", outline: "none" }} />
                   <input type="date" value={editDate} onChange={e => setEditDate(e.target.value)}
-                    style={{ flex: 1, height: 36, background: "rgba(0,0,0,0.3)",
+                    style={{ flex: 1, minWidth: 120, height: 36, background: "rgba(0,0,0,0.3)",
                     border: "1px solid rgba(255,107,53,0.15)", borderRadius: 8, color: "#f0ede8",
                     fontSize: 13, outline: "none", padding: "0 8px" }} />
                   <button onClick={() => {
                     const w = parseFloat(editWeight);
                     const r = editReps !== "" ? parseInt(editReps, 10) : null;
                     const ts = new Date(editDate).setHours(12, 0, 0, 0);
-                    if (w > 0) { onEditSet(exercise.id, session, w, r, ts); setEditingSet(null); }
+                    if (w > 0) { onEditSet(exercise.id, originalIndex, w, r, ts); setEditingIndex(null); }
                   }} style={{ width: 36, height: 36, borderRadius: 8, border: "none",
                     background: "#22c55e", color: "#fff", cursor: "pointer",
                     display: "flex", alignItems: "center", justifyContent: "center" }}>
                     <Check size={16} />
                   </button>
-                  <button onClick={() => setEditingSet(null)} style={{ width: 36, height: 36,
+                  <button onClick={() => setEditingIndex(null)} style={{ width: 36, height: 36,
                     borderRadius: 8, border: "1px solid rgba(255,255,255,0.1)",
                     background: "transparent", color: "#666", cursor: "pointer",
                     display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -513,7 +560,7 @@ function ExerciseDetail({ exercise, onSave, onDeleteSet, onEditSet, onBack }) {
                   </button>
                 </div>
               ) : (
-                <>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                   <div>
                     <span style={{ color: "#ff6b35", fontWeight: 700 }}>{session.weight} ק״ג</span>
                     {session.reps != null && <span style={{ color: "#aaa", fontSize: 13 }}> × {session.reps}</span>}
@@ -521,7 +568,7 @@ function ExerciseDetail({ exercise, onSave, onDeleteSet, onEditSet, onBack }) {
                   </div>
                   <div style={{ display: "flex", gap: 6 }}>
                     <button onClick={() => {
-                      setEditingSet(session);
+                      setEditingIndex(originalIndex);
                       setEditWeight(session.weight.toString());
                       setEditReps(session.reps != null ? session.reps.toString() : "");
                       const d = new Date(session.date);
@@ -532,7 +579,7 @@ function ExerciseDetail({ exercise, onSave, onDeleteSet, onEditSet, onBack }) {
                       display: "flex", alignItems: "center", justifyContent: "center" }}>
                       <Pencil size={14} />
                     </button>
-                    <button onClick={() => onDeleteSet(exercise.id, session)}
+                    <button onClick={() => onDeleteSet(exercise.id, originalIndex)}
                       style={{ width: 32, height: 32, borderRadius: 8,
                       border: "1px solid rgba(255,80,80,0.2)", background: "rgba(255,80,80,0.06)",
                       color: "#e05555", cursor: "pointer",
@@ -540,7 +587,7 @@ function ExerciseDetail({ exercise, onSave, onDeleteSet, onEditSet, onBack }) {
                       <Trash2 size={14} />
                     </button>
                   </div>
-                </>
+                </div>
               )}
             </div>
           ))}
@@ -559,16 +606,10 @@ function ExerciseDetail({ exercise, onSave, onDeleteSet, onEditSet, onBack }) {
         {showChart ? <ChevronUp size={16} color="#555" /> : <ChevronDown size={16} color="#555" />}
       </button>
 
-      {showChart && <Chart sessions={exercise.sessions} name={exercise.name} />}
+      {showChart && <Chart sessions={exercise.sessions} />}
     </div>
   );
 }
-
-const CATS = [
-  { key: "push", label: "דחיפה", desc: "חזה · כתפיים · יד אחורית", color: "#ff6b35" },
-  { key: "pull", label: "משיכה", desc: "גב · יד קדמית · כתף אחורית", color: "#4ecdc4" },
-  { key: "legs", label: "רגליים", desc: "ארבע ראשי · המסטרינג · ישבן", color: "#a78bfa" },
-];
 
 export default function WorkoutTracker() {
   const { profiles, exercises, addProfile, deleteProfile, updateExerciseWeight, addExercise, deleteSet, editSet } = useLocalDB();
@@ -591,7 +632,6 @@ export default function WorkoutTracker() {
     setSelectedProfile(p); setView("dashboard");
   }
 
-  // CHANGE 4: delete handler
   function handleDeleteProfile(profileId) {
     if (!window.confirm("למחוק את הפרופיל וכל הנתונים שלו?")) return;
     deleteProfile(profileId);
@@ -604,37 +644,43 @@ export default function WorkoutTracker() {
   function handleAddProfile() {
     const name = newProfileName.trim();
     if (!name) return;
-    addProfile(name);
-    setNewProfileName(""); setAddingProfile(false);
+    const result = addProfile(name);
+    if (result) { setNewProfileName(""); setAddingProfile(false); }
   }
 
-  function handleSaveWeight(exId, w, r) {
-    updateExerciseWeight(exId, w, r);
-    const updatedEx = {
-      ...selectedExercise,
-      sessions: [...selectedExercise.sessions, { weight: w, reps: r || null, date: Date.now() }]
-    };
-    setSelectedExercise(updatedEx);
+  function handleSaveWeight(exId, w, r, ts) {
+    updateExerciseWeight(exId, w, r, ts);
+    const live = exercises.find(e => e.id === exId);
+    if (live) {
+      setSelectedExercise({
+        ...live,
+        sessions: [...live.sessions, { weight: w, reps: r || null, date: ts }]
+      });
+    }
   }
 
-  function handleDeleteSet(exId, session) {
-    deleteSet(exId, session);
-    const updatedEx = {
-      ...selectedExercise,
-      sessions: selectedExercise.sessions.filter(s => s !== session)
-    };
-    setSelectedExercise(updatedEx);
+  function handleDeleteSet(exId, sessionIndex) {
+    deleteSet(exId, sessionIndex);
+    const live = exercises.find(e => e.id === exId);
+    if (live) {
+      setSelectedExercise({
+        ...live,
+        sessions: live.sessions.filter((_, i) => i !== sessionIndex)
+      });
+    }
   }
 
-  function handleEditSet(exId, session, w, r, ts) {
-    editSet(exId, session, w, r, ts);
-    const updatedEx = {
-      ...selectedExercise,
-      sessions: selectedExercise.sessions.map(s =>
-        s === session ? { ...s, weight: w, reps: r || null, date: ts } : s
-      )
-    };
-    setSelectedExercise(updatedEx);
+  function handleEditSet(exId, sessionIndex, w, r, ts) {
+    editSet(exId, sessionIndex, w, r, ts);
+    const live = exercises.find(e => e.id === exId);
+    if (live) {
+      setSelectedExercise({
+        ...live,
+        sessions: live.sessions.map((s, i) =>
+          i === sessionIndex ? { ...s, weight: w, reps: r || null, date: ts } : s
+        )
+      });
+    }
   }
 
   function handleAddExercise() {
@@ -655,7 +701,7 @@ export default function WorkoutTracker() {
     return (
       <div style={{ ...BG, padding: "52px 20px 32px" }}>
         <ExerciseDetail
-          exercise={{ ...live, ...selectedExercise, sessions: live.sessions }}
+          exercise={live}
           onSave={handleSaveWeight}
           onDeleteSet={handleDeleteSet}
           onEditSet={handleEditSet}
@@ -766,18 +812,16 @@ export default function WorkoutTracker() {
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
           {CATS.map(cat => {
             const exs = exercises.filter(e => e.profile_id === selectedProfile.id && e.category === cat.key);
-            const lastUpdated = exs.reduce((m, e) => Math.max(m, e.updated_at), 0);
             const withData = exs.filter(e => e.sessions.length > 0);
             return (
               <button key={cat.key} onClick={() => { setSelectedCat(cat.key); setView("category"); }}
                 style={{
                   display: "flex", alignItems: "center",
-                  background: `linear-gradient(135deg, ${cat.color}15 0%, ${cat.color}05 100%)`,
+                  background: `${cat.color}15`,
                   border: `1px solid ${cat.color}30`,
                   borderRadius: 20, padding: "20px 20px",
                   cursor: "pointer", textAlign: "right",
                   WebkitTapHighlightColor: "transparent",
-                  transition: "transform 0.1s",
                 }}
               >
                 <div style={{ flex: 1 }}>
@@ -790,11 +834,6 @@ export default function WorkoutTracker() {
                     <span style={{ color: "#555", fontSize: 12 }}>
                       <span style={{ color: cat.color, fontWeight: 700 }}>{withData.length}</span> רשומים
                     </span>
-                    {lastUpdated > 0 && (
-                      <span style={{ color: "#444", fontSize: 12, display: "flex", alignItems: "center", gap: 3 }}>
-                        <Calendar size={10} /> {fmtRelative(lastUpdated)}
-                      </span>
-                    )}
                   </div>
                 </div>
                 <ChevronLeft size={22} color={cat.color} style={{ transform: "rotate(180deg)", opacity: 0.6 }} />
@@ -806,7 +845,6 @@ export default function WorkoutTracker() {
     );
   }
 
-  // PROFILES VIEW
   return (
     <div style={{ ...BG, padding: "52px 20px 32px" }}>
       <div style={{ marginBottom: 32 }}>
@@ -831,7 +869,7 @@ export default function WorkoutTracker() {
         ))}
       </div>
 
-      {profiles.length < 10 && (
+      {profiles.length < 3 && (
         addingProfile ? (
           <div style={{
             background: "rgba(255,107,53,0.06)", border: "1px solid rgba(255,107,53,0.2)",
@@ -872,27 +910,17 @@ export default function WorkoutTracker() {
             display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
             cursor: "pointer",
           }}>
-            <Plus size={20} /> הוספת פרופיל {profiles.length > 0 && `(נשארו עוד ${10 - profiles.length})`}
+            <Plus size={20} /> הוספת פרופיל {profiles.length > 0 && `(${3 - profiles.length} נשארו)`}
           </button>
         )
       )}
 
       {profiles.length === 0 && (
         <div style={{ textAlign: "center", marginTop: 40, color: "#444" }}>
-          <User size={40} color="#333" style={{ margin: "0 auto 12px" }} />
-          <div style={{ fontSize: 15 }}>יש להוסיף פרופיל ראשון כדי להתחיל</div>
+          <Dumbbell size={40} color="#333" style={{ margin: "0 auto 12px" }} />
+          <div style={{ fontSize: 15 }}>הוסף פרופיל כדי להתחיל</div>
         </div>
       )}
-
-      <div style={{ marginTop: 40, padding: "16px", background: "rgba(255,255,255,0.02)", borderRadius: 12, border: "1px solid rgba(255,255,255,0.05)" }}>
-        <div style={{ color: "#444", fontSize: 11, fontWeight: 700, textTransform: "uppercase", marginBottom: 10 }}>
-          חיבור ל-Supabase
-        </div>
-        <div style={{ color: "#555", fontSize: 12, lineHeight: 1.6 }}>
-          האפליקציה שומרת נתונים מקומית דרך <code dir="ltr" style={{ color: "#ff6b35", background: "rgba(255,107,53,0.1)", padding: "1px 5px", borderRadius: 4 }}>localStorage</code> ומוכנה לחיבור סנכרון לענן של Supabase.
-        </div>
-      </div>
     </div>
   );
 }
-  
