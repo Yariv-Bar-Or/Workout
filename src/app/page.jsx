@@ -5,7 +5,7 @@ import AuthScreen from "../components/AuthScreen";
 import WorkoutTracker from "../components/WorkoutTracker";
 
 export default function Page() {
-  const { user, session, loading } = useAuth();
+  const { user, session, loading, needsName } = useAuth();
 
   if (loading) return (
     <div style={{ minHeight: "100vh", background: "#0f0f0f", display: "flex", alignItems: "center", justifyContent: "center", color: "#ff6b35", fontSize: 18 }}>
@@ -13,7 +13,7 @@ export default function Page() {
     </div>
   );
 
-  if (!session) return <AuthScreen />;
+  if (!session || needsName) return <AuthScreen />;
 
   return <WorkoutTracker user={user} />;
 }

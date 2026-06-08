@@ -2,6 +2,7 @@
 
 import { useState, useRef } from "react";
 import { useSupabaseDB as useLocalDB } from '../hooks/useSupabaseDB';
+import { supabase } from '../lib/supabase';
 import { ComposedChart, Line, Customized, XAxis, YAxis, ResponsiveContainer } from "recharts";
 import {
   ChevronLeft, Plus, Dumbbell, TrendingUp, X, Check,
@@ -624,9 +625,21 @@ export default function WorkoutTracker({ user }) {
   return (
     <div style={{ ...BG, padding: "52px 20px 32px" }}>
       <div style={{ marginBottom: 32 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-          <Dumbbell size={24} color="#ff6b35" />
-          <span style={{ color: "#ff6b35", fontSize: 12, fontWeight: 800, letterSpacing: 2 }}>IRON LOG</span>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <Dumbbell size={24} color="#ff6b35" />
+            <span style={{ color: "#ff6b35", fontSize: 12, fontWeight: 800, letterSpacing: 2 }}>IRON LOG</span>
+          </div>
+          <button
+            onClick={() => supabase.auth.signOut()}
+            style={{
+              background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)",
+              borderRadius: 8, color: "#555", fontSize: 12, fontWeight: 600,
+              padding: "6px 12px", cursor: "pointer",
+            }}
+          >
+            יציאה
+          </button>
         </div>
         <h1 style={{ color: "#f0ede8", fontSize: 28, fontWeight: 900, margin: 0, lineHeight: 1.3 }}>
           ברוך הבא, {user?.user_metadata?.name}! 💪

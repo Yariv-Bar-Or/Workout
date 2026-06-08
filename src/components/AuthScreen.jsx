@@ -28,11 +28,12 @@ const inputStyle = {
   border: "1px solid rgba(255,107,53,0.3)",
   borderRadius: 12,
   color: "#f0ede8",
-  fontSize: 18,
+  fontSize: 16,
   padding: "0 16px",
   outline: "none",
   boxSizing: "border-box",
   textAlign: "right",
+  marginBottom: 10,
 };
 
 const btnPrimary = (disabled) => ({
@@ -45,86 +46,101 @@ const btnPrimary = (disabled) => ({
   fontSize: 17,
   fontWeight: 700,
   cursor: disabled ? "not-allowed" : "pointer",
-  marginTop: 12,
+  marginTop: 4,
   opacity: disabled ? 0.7 : 1,
 });
 
-function formatPhone(raw) {
-  const digits = raw.replace(/\D/g, "");
-  if (digits.startsWith("972")) return "+" + digits;
-  if (digits.startsWith("05") || digits.startsWith("5")) {
-    const local = digits.startsWith("05") ? digits.slice(1) : digits;
-    return "+972" + local;
+function hebrewError(err, mode) {
+  const msg = err?.message || "";
+  if (msg.includes("Invalid login credentials")) {
+    return mode === "login" ? "סיסמה שגויה, נסה שוב" : "המשתמש לא נמצא, נסה להירשם";
   }
-  if (digits.startsWith("0")) return "+972" + digits.slice(1);
-  return "+" + digits;
+  if (msg.includes("already registered") || msg.includes("already exists") || msg.includes("User already")) {
+    return "האימייל כבר קיים, נסה להתחבר";
+  }
+  if (msg.includes("user not found") || msg.includes("No user")) {
+    return "המשתמש לא נמצא, נסה להירשם";
+  }
+  return "אירעה שגיאה, נסה שוב";
 }
 
 export default function AuthScreen() {
-  const [step, setStep] = useState("phone"); // phone | otp | name
-  const [phone, setPhone] = useState("");
-  const [otp, setOtp] = useState("");
+  const [mode, setMode] = useState("login"); // login | signup
+  const [step, setStep] = useState("auth");  // auth | name
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [name, setName] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  async function handleSendOtp() {
+  async function handleAuth() {
     setError("");
-    const formatted = formatPhone(phone.trim());
-    if (formatted.length < 10) {
-      setError("נא להזין מספר טלפון תקין");
-      return;
-    }
-    setLoading(true);
-    const { error: err } = await supabase.auth.signInWithOtp({ phone: formatted });
-    setLoading(false);
-    if (err) {
-      setError("שגיאה בשליחת הקוד. נסה שוב.");
-      return;
-    }
-    setPhone(formatted);
-    setStep("otp");
-  }
+    if (!email.trim() || !password) return;
 
-  async function handleVerifyOtp() {
-    setError("");
-    if (otp.length !== 6) {
-      setError("הקוד חייב להיות 6 ספרות");
-      return;
-    }
     setLoading(true);
-    const { data, error: err } = await supabase.auth.verifyOtp({
-      phone,
-      token: otp,
-      type: "sms",
-    });
-    setLoading(false);
-    if (err) {
-      setError("הקוד שגוי או שפג תוקפו. נסה שוב.");
-      return;
+
+    if (mode === "login") {
+      const { data, error: err } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
+      setLoading(false);
+      if (err) { console.error('signInWithPassword error:', err); setError(hebrewError(err, "login")); return; }
+      const hasName = data?.user?.user_metadata?.name;
+      if (!hasName) setStep("name");
+
+    } else {
+      const { error: signUpErr } = await supabase.auth.signUp({ email: email.trim(), password });
+      if (signUpErr) { setLoading(false); setError(hebrewError(signUpErr, "signup")); return; }
+      const { data, error: signInErr } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
+      setLoading(false);
+      if (signInErr) { setError(hebrewError(signInErr, "login")); return; }
+      const hasName = data?.user?.user_metadata?.name;
+      if (!hasName) setStep("name");
     }
-    const hasName = data?.user?.user_metadata?.name;
-    if (!hasName) {
-      setStep("name");
-    }
-    // if hasName, parent will re-render via useAuth — nothing needed here
   }
 
   async function handleSaveName() {
     setError("");
-    if (!name.trim()) {
-      setError("נא להזין שם");
-      return;
-    }
+    if (!name.trim()) { setError("נא להזין שם"); return; }
     setLoading(true);
-    const { error: err } = await supabase.auth.updateUser({
-      data: { name: name.trim() },
-    });
+    const { error: err } = await supabase.auth.updateUser({ data: { name: name.trim() } });
     setLoading(false);
-    if (err) {
-      setError("שגיאה בשמירת השם. נסה שוב.");
-    }
+    if (err) setError("שגיאה בשמירת השם. נסה שוב.");
     // parent re-renders via useAuth on user update
+  }
+
+  if (step === "name") {
+    return (
+      <div style={BG}>
+        <div style={card}>
+          <div style={{ textAlign: "center", marginBottom: 40 }}>
+            <Dumbbell size={36} color="#ff6b35" style={{ marginBottom: 12 }} />
+            <div style={{ color: "#ff6b35", fontSize: 12, fontWeight: 800, letterSpacing: 2, marginBottom: 6 }}>
+              IRON LOG
+            </div>
+            <h1 style={{ color: "#f0ede8", fontSize: 28, fontWeight: 900, margin: 0, lineHeight: 1.3 }}>
+              ברוך הבא!
+            </h1>
+            <p style={{ color: "#666", fontSize: 14, marginTop: 8, marginBottom: 0 }}>איך לקרוא לך?</p>
+          </div>
+          <input
+            style={inputStyle}
+            type="text"
+            placeholder="השם שלך"
+            value={name}
+            onChange={e => { setName(e.target.value); setError(""); }}
+            onKeyDown={e => e.key === "Enter" && !loading && handleSaveName()}
+            autoFocus
+          />
+          {error && <div style={{ color: "#e05555", fontSize: 13, marginBottom: 8 }}>{error}</div>}
+          <button
+            style={btnPrimary(loading || !name.trim())}
+            disabled={loading || !name.trim()}
+            onClick={handleSaveName}
+          >
+            {loading ? "שומר..." : "בואו נתחיל"}
+          </button>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -136,95 +152,47 @@ export default function AuthScreen() {
             IRON LOG
           </div>
           <h1 style={{ color: "#f0ede8", fontSize: 28, fontWeight: 900, margin: 0, lineHeight: 1.3 }}>
-            {step === "phone" && "כניסה"}
-            {step === "otp"   && "אימות"}
-            {step === "name"  && "ברוך הבא!"}
+            {mode === "login" ? "ברוך הבא" : "יצירת חשבון"}
           </h1>
-          <p style={{ color: "#666", fontSize: 14, marginTop: 8, marginBottom: 0 }}>
-            {step === "phone" && "הזן את מספר הטלפון שלך"}
-            {step === "otp"   && `נשלח קוד לאימות למספר ${phone}`}
-            {step === "name"  && "איך לקרוא לך?"}
-          </p>
         </div>
 
-        {step === "phone" && (
-          <div>
-            <input
-              style={{ ...inputStyle, letterSpacing: 1 }}
-              type="tel"
-              inputMode="tel"
-              placeholder="05X-XXXXXXX"
-              value={phone}
-              onChange={e => { setPhone(e.target.value); setError(""); }}
-              onKeyDown={e => e.key === "Enter" && !loading && handleSendOtp()}
-              autoFocus
-            />
-            {error && <div style={{ color: "#e05555", fontSize: 13, marginTop: 8 }}>{error}</div>}
-            <button
-              style={btnPrimary(loading || !phone.trim())}
-              disabled={loading || !phone.trim()}
-              onClick={handleSendOtp}
-            >
-              {loading ? "שולח..." : "שלח קוד"}
-            </button>
-          </div>
-        )}
+        <input
+          style={inputStyle}
+          type="email"
+          inputMode="email"
+          placeholder="אימייל"
+          value={email}
+          onChange={e => { setEmail(e.target.value); setError(""); }}
+          onKeyDown={e => e.key === "Enter" && !loading && handleAuth()}
+          autoFocus
+        />
+        <input
+          style={inputStyle}
+          type="password"
+          placeholder={mode === "login" ? "סיסמה" : "סיסמה (לפחות 6 תווים)"}
+          value={password}
+          onChange={e => { setPassword(e.target.value); setError(""); }}
+          onKeyDown={e => e.key === "Enter" && !loading && handleAuth()}
+        />
 
-        {step === "otp" && (
-          <div>
-            <input
-              style={{ ...inputStyle, letterSpacing: 6, textAlign: "center" }}
-              type="number"
-              inputMode="numeric"
-              placeholder="000000"
-              maxLength={6}
-              value={otp}
-              onChange={e => { setOtp(e.target.value.slice(0, 6)); setError(""); }}
-              onKeyDown={e => e.key === "Enter" && !loading && handleVerifyOtp()}
-              autoFocus
-            />
-            {error && <div style={{ color: "#e05555", fontSize: 13, marginTop: 8 }}>{error}</div>}
-            <button
-              style={btnPrimary(loading || otp.length !== 6)}
-              disabled={loading || otp.length !== 6}
-              onClick={handleVerifyOtp}
-            >
-              {loading ? "מאמת..." : "אימות"}
-            </button>
-            <button
-              style={{
-                width: "100%", height: 44, borderRadius: 12, border: "none",
-                background: "transparent", color: "#666", fontSize: 14,
-                cursor: "pointer", marginTop: 8,
-              }}
-              onClick={() => { setStep("phone"); setOtp(""); setError(""); }}
-            >
-              חזרה לשינוי מספר
-            </button>
-          </div>
-        )}
+        {error && <div style={{ color: "#e05555", fontSize: 13, marginBottom: 8 }}>{error}</div>}
 
-        {step === "name" && (
-          <div>
-            <input
-              style={inputStyle}
-              type="text"
-              placeholder="השם שלך"
-              value={name}
-              onChange={e => { setName(e.target.value); setError(""); }}
-              onKeyDown={e => e.key === "Enter" && !loading && handleSaveName()}
-              autoFocus
-            />
-            {error && <div style={{ color: "#e05555", fontSize: 13, marginTop: 8 }}>{error}</div>}
-            <button
-              style={btnPrimary(loading || !name.trim())}
-              disabled={loading || !name.trim()}
-              onClick={handleSaveName}
-            >
-              {loading ? "שומר..." : "בואו נתחיל"}
-            </button>
-          </div>
-        )}
+        <button
+          style={btnPrimary(loading || !email.trim() || !password)}
+          disabled={loading || !email.trim() || !password}
+          onClick={handleAuth}
+        >
+          {loading ? "..." : mode === "login" ? "כניסה" : "הרשמה"}
+        </button>
+
+        <div style={{ textAlign: "center", marginTop: 20 }}>
+          <button
+            style={{ background: "none", border: "none", color: "#888", fontSize: 14, cursor: "pointer" }}
+            onClick={() => { setMode(mode === "login" ? "signup" : "login"); setError(""); }}
+          >
+            {mode === "login" ? "אין לך חשבון? הירשם" : "יש לך חשבון? התחבר"}
+          </button>
+        </div>
       </div>
     </div>
   );
