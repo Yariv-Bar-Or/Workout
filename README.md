@@ -11,7 +11,7 @@
 
 | | | | |
 |---|---|---|---|
-| ![Login](./screenshots/1.jpeg) | ![Home](./screenshots/2.jpeg) | ![Workout](./screenshots/3.jpeg) | ![Progress](./screenshots/4.jpeg) |
+| ![Login](./screenshots/1.jpg) | ![Home](./screenshots/2.jpeg) | ![Workout](./screenshots/3.jpeg) | ![Progress](./screenshots/4.jpeg) |
 
 ## ✨ Features
 
