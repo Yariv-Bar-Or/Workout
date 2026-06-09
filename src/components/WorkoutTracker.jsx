@@ -502,10 +502,8 @@ export default function WorkoutTracker({ user }) {
   useEffect(() => {
     if (loading) return;
     const saved = localStorage.getItem("restTimerDuration");
-    const shown = sessionStorage.getItem("restTimerModalShown");
-    console.log("[RestTimerModal] check — restTimerDuration:", saved, "| restTimerModalShown:", shown);
-    if (saved !== null) return;
-    if (!shown) setShowTimerModal(true);
+    console.log("[RestTimerModal] check — restTimerDuration:", saved);
+    if (saved === null) setShowTimerModal(true);
   }, [loading]);
 
   if (loading) return (
