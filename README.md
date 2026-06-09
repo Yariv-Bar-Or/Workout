@@ -41,6 +41,7 @@
 
 ## 🗂 Architecture
 
+```
 /
 ├── src/
 │   ├── app/              # Next.js App Router — pages and layouts
@@ -48,9 +49,8 @@
 │   ├── hooks/            # Custom React hooks (useWorkout, useTimer…)
 │   └── lib/              # Supabase client, helper utilities
 └── supabase/
-└── schema.sql        # Database schema
-
----
+    └── schema.sql        # Database schema
+```
 
 ## 🚀 Running Locally
 
