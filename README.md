@@ -7,15 +7,14 @@
 [![Supabase](https://img.shields.io/badge/Supabase-Backend-3ECF8E?style=flat-square&logo=supabase)](https://supabase.com)
 
 ---
-
 ## 📸 Screenshot
+## 📸 Screenshots
 
-<!-- Drop your dark-mode screenshot or GIF here -->
-<!-- Recommended: record your screen → upload to ezgif.com → paste the GIF below -->
+| | | |
+|---|---|---|
+| ![Login](./screenshots/1.jpeg) | ![Home](./screenshots/2.jpeg) | ![Workout](./screenshots/3.jpeg) |
 
-![Iron Log Demo](./public/demo.gif)
-
----
+![Progress](./screenshots/4.jpeg)
 
 ## ✨ Features
 
