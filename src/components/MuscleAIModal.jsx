@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import LoadingSpinner from "./LoadingSpinner";
 
 export default function MuscleAIModal({ muscleGroup, onClose }) {
   const [result, setResult] = useState("");
@@ -71,6 +72,9 @@ export default function MuscleAIModal({ muscleGroup, onClose }) {
           </button>
         </div>
 
+        {/* Loading */}
+        {loading && <LoadingSpinner />}
+
         {/* Error */}
         {error && (
           <div style={{ color: "#e05555", fontSize: 14, marginBottom: 12 }}>{error}</div>
@@ -87,6 +91,23 @@ export default function MuscleAIModal({ muscleGroup, onClose }) {
           }}>
             {result}
           </div>
+        )}
+
+        {/* Next exercise */}
+        {result && (
+          <button onClick={fetchExercise} style={{
+            marginTop: 16,
+            width: '100%',
+            padding: '10px 0',
+            borderRadius: 10,
+            background: 'transparent',
+            border: '1px solid #555',
+            color: '#ccc',
+            fontSize: 14,
+            cursor: 'pointer'
+          }}>
+            לתרגיל נוסף לחץ כאן ↺
+          </button>
         )}
       </div>
     </div>

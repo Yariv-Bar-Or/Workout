@@ -4,6 +4,7 @@ import { useState, useRef } from "react";
 import { useSupabaseDB as useLocalDB } from '../hooks/useSupabaseDB';
 import { supabase } from '../lib/supabase';
 import MuscleAIModal from './MuscleAIModal';
+import LoadingSpinner from './LoadingSpinner';
 import { ComposedChart, Line, Customized, XAxis, YAxis, ResponsiveContainer } from "recharts";
 import {
   ChevronLeft, Plus, Dumbbell, TrendingUp, X, Check,
@@ -482,8 +483,8 @@ export default function WorkoutTracker({ user }) {
   const [aiModalCat, setAiModalCat] = useState(null);
 
   if (loading) return (
-    <div style={{ minHeight: "100vh", background: "#0f0f0f", display: "flex", alignItems: "center", justifyContent: "center", color: "#ff6b35", fontSize: 18 }}>
-      טוען...
+    <div style={{ minHeight: "100vh", background: "#0f0f0f", display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <LoadingSpinner />
     </div>
   );
 
