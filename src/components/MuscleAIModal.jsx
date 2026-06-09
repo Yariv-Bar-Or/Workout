@@ -1,11 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 export default function MuscleAIModal({ muscleGroup, onClose }) {
   const [result, setResult] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  useEffect(() => { fetchExercise(); }, []);
 
   async function fetchExercise() {
     setError("");
@@ -68,22 +70,6 @@ export default function MuscleAIModal({ muscleGroup, onClose }) {
             ✕
           </button>
         </div>
-
-        {/* Fetch button */}
-        <button
-          onClick={fetchExercise}
-          disabled={loading}
-          style={{
-            width: "100%", height: 50, borderRadius: 12, border: "none",
-            background: loading ? "#7a3a1e" : "#ff6b35",
-            color: "#fff", fontSize: 16, fontWeight: 700,
-            cursor: loading ? "not-allowed" : "pointer",
-            opacity: loading ? 0.7 : 1,
-            marginBottom: 20,
-          }}
-        >
-          {loading ? "טוען..." : "קבל תרגיל"}
-        </button>
 
         {/* Error */}
         {error && (
