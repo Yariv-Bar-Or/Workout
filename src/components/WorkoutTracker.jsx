@@ -3,6 +3,7 @@
 import { useState, useRef } from "react";
 import { useSupabaseDB as useLocalDB } from '../hooks/useSupabaseDB';
 import { supabase } from '../lib/supabase';
+import MuscleAIModal from './MuscleAIModal';
 import { ComposedChart, Line, Customized, XAxis, YAxis, ResponsiveContainer } from "recharts";
 import {
   ChevronLeft, Plus, Dumbbell, TrendingUp, X, Check,
@@ -478,6 +479,7 @@ export default function WorkoutTracker({ user }) {
   const [selectedExercise, setSelectedExercise] = useState(null);
   const [addingExercise, setAddingExercise] = useState(false);
   const [newExerciseName, setNewExerciseName] = useState("");
+  const [aiModalCat, setAiModalCat] = useState(null);
 
   if (loading) return (
     <div style={{ minHeight: "100vh", background: "#0f0f0f", display: "flex", alignItems: "center", justifyContent: "center", color: "#ff6b35", fontSize: 18 }}>
@@ -652,33 +654,54 @@ export default function WorkoutTracker({ user }) {
           const exs = exercises.filter(e => e.category === cat.key);
           const withData = exs.filter(e => e.sessions.length > 0);
           return (
-            <button key={cat.key} onClick={() => { setSelectedCat(cat.key); setView("category"); }}
-              style={{
-                display: "flex", alignItems: "center",
-                background: `${cat.color}15`,
-                border: `1px solid ${cat.color}30`,
-                borderRadius: 20, padding: "20px 20px",
-                cursor: "pointer", textAlign: "right",
-                WebkitTapHighlightColor: "transparent",
-              }}
-            >
-              <div style={{ flex: 1 }}>
-                <div style={{ color: cat.color, fontSize: 28, fontWeight: 900 }}>{cat.label}</div>
-                <div style={{ color: "#666", fontSize: 13, marginTop: 4 }}>{cat.desc}</div>
-                <div style={{ display: "flex", gap: 12, marginTop: 10 }}>
-                  <span style={{ color: "#555", fontSize: 12 }}>
-                    <span style={{ color: cat.color, fontWeight: 700 }}>{exs.length}</span> תרגילים
-                  </span>
-                  <span style={{ color: "#555", fontSize: 12 }}>
-                    <span style={{ color: cat.color, fontWeight: 700 }}>{withData.length}</span> רשומים
-                  </span>
+            <div key={cat.key} style={{
+              background: `${cat.color}15`,
+              border: `1px solid ${cat.color}30`,
+              borderRadius: 20, overflow: "hidden",
+            }}>
+              <div onClick={() => { setSelectedCat(cat.key); setView("category"); }}
+                style={{
+                  display: "flex", alignItems: "center",
+                  padding: "20px 20px",
+                  cursor: "pointer", textAlign: "right",
+                  WebkitTapHighlightColor: "transparent",
+                }}
+              >
+                <div style={{ flex: 1 }}>
+                  <div style={{ color: cat.color, fontSize: 28, fontWeight: 900 }}>{cat.label}</div>
+                  <div style={{ color: "#666", fontSize: 13, marginTop: 4 }}>{cat.desc}</div>
+                  <div style={{ display: "flex", gap: 12, marginTop: 10 }}>
+                    <span style={{ color: "#555", fontSize: 12 }}>
+                      <span style={{ color: cat.color, fontWeight: 700 }}>{exs.length}</span> תרגילים
+                    </span>
+                    <span style={{ color: "#555", fontSize: 12 }}>
+                      <span style={{ color: cat.color, fontWeight: 700 }}>{withData.length}</span> רשומים
+                    </span>
+                  </div>
                 </div>
+                <ChevronLeft size={22} color={cat.color} style={{ transform: "rotate(180deg)", opacity: 0.6 }} />
               </div>
-              <ChevronLeft size={22} color={cat.color} style={{ transform: "rotate(180deg)", opacity: 0.6 }} />
-            </button>
+              <button onClick={() => setAiModalCat(cat.key)} style={{
+                width: "100%", padding: "10px 20px",
+                background: `${cat.color}0d`,
+                border: "none", borderTop: `1px solid ${cat.color}25`,
+                color: cat.color, fontSize: 13, fontWeight: 700,
+                cursor: "pointer", textAlign: "center",
+                WebkitTapHighlightColor: "transparent",
+              }}>
+                💡 תרגילים וטיפים
+              </button>
+            </div>
           );
         })}
       </div>
+
+      {aiModalCat && (
+        <MuscleAIModal
+          muscleGroup={CATS.find(c => c.key === aiModalCat)?.label}
+          onClose={() => setAiModalCat(null)}
+        />
+      )}
     </div>
   );
 }
