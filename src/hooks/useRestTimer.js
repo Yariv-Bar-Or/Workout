@@ -1,23 +1,28 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
 
-function playBeep() {
+async function playBeep() {
+  console.log("[useRestTimer] playBeep called");
   try {
     const AC = window.AudioContext || window.webkitAudioContext;
     if (!AC) return;
     const ctx = new AC();
+    // New AudioContext is often suspended when not created in a user-gesture handler
+    if (ctx.state === "suspended") {
+      await ctx.resume();
+    }
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
     osc.connect(gain);
     gain.connect(ctx.destination);
     osc.frequency.value = 800;
     osc.type = "sine";
-    gain.gain.setValueAtTime(0.5, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.5);
+    gain.gain.setValueAtTime(0.3, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
     osc.start(ctx.currentTime);
-    osc.stop(ctx.currentTime + 0.5);
-  } catch {
-    // AudioContext unavailable — no sound
+    osc.stop(ctx.currentTime + 0.3);
+  } catch (e) {
+    console.warn("[useRestTimer] playBeep error:", e);
   }
 }
 
