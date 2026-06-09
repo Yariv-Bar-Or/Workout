@@ -8,6 +8,9 @@ import LoadingSpinner from './LoadingSpinner';
 import ExportButton from './ExportButton';
 import StatsDashboard from './StatsDashboard';
 import { useOfflineSync } from '../hooks/useOfflineSync';
+import { useVoiceLogger } from '../hooks/useVoiceLogger';
+import VoiceButton from './VoiceButton';
+import VoiceConfirmCard from './VoiceConfirmCard';
 import { ComposedChart, Line, Customized, XAxis, YAxis, ResponsiveContainer } from "recharts";
 import {
   ChevronLeft, Plus, Dumbbell, TrendingUp, X, Check,
@@ -487,6 +490,7 @@ export default function WorkoutTracker({ user }) {
   const [newExerciseName, setNewExerciseName] = useState("");
   const [aiModalCat, setAiModalCat] = useState(null);
   useOfflineSync(user);
+  const voiceLogger = useVoiceLogger(exercises, updateExerciseWeight);
 
   if (loading) return (
     <div style={{ minHeight: "100vh", background: "#0f0f0f", display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -546,6 +550,44 @@ export default function WorkoutTracker({ user }) {
     color: "#f0ede8",
   };
 
+  const voiceOverlay = (
+    <>
+      <VoiceButton
+        isListening={voiceLogger.isListening}
+        isSupported={voiceLogger.isSupported}
+        isParsing={voiceLogger.isParsing}
+        onPress={voiceLogger.isListening ? voiceLogger.stopListening : voiceLogger.startListening}
+      />
+      {voiceLogger.pendingConfirm && (
+        <VoiceConfirmCard
+          parsed={voiceLogger.pendingConfirm}
+          onConfirm={voiceLogger.confirmLog}
+          onCancel={voiceLogger.cancelConfirm}
+        />
+      )}
+      {voiceLogger.parseError && !voiceLogger.pendingConfirm && (
+        <div style={{
+          position: "fixed",
+          bottom: "8rem",
+          left: "50%",
+          transform: "translateX(-50%)",
+          background: "#2a1515",
+          border: "1px solid rgba(239,68,68,0.3)",
+          borderRadius: 12,
+          padding: "12px 20px",
+          color: "#f87171",
+          fontSize: 14,
+          zIndex: 1001,
+          direction: "rtl",
+          boxShadow: "0 4px 16px rgba(0,0,0,0.4)",
+          whiteSpace: "nowrap",
+        }}>
+          {voiceLogger.parseError}
+        </div>
+      )}
+    </>
+  );
+
   if (view === "stats") {
     return <StatsDashboard user={user} onBack={() => setView("dashboard")} />;
   }
@@ -553,21 +595,25 @@ export default function WorkoutTracker({ user }) {
   if (view === "exercise" && selectedExercise) {
     const live = exercises.find(e => e.id === selectedExercise.id) || selectedExercise;
     return (
-      <div style={{ ...BG, padding: "52px 20px 32px" }}>
-        <ExerciseDetail
-          exercise={live}
-          onSave={handleSaveWeight}
-          onDeleteSet={handleDeleteSet}
-          onEditSet={handleEditSet}
-          onBack={() => { setView("category"); setSelectedExercise(null); }}
-        />
-      </div>
+      <>
+        <div style={{ ...BG, padding: "52px 20px 32px" }}>
+          <ExerciseDetail
+            exercise={live}
+            onSave={handleSaveWeight}
+            onDeleteSet={handleDeleteSet}
+            onEditSet={handleEditSet}
+            onBack={() => { setView("category"); setSelectedExercise(null); }}
+          />
+        </div>
+        {voiceOverlay}
+      </>
     );
   }
 
   if (view === "category" && selectedCat) {
     const catInfo = CATS.find(c => c.key === selectedCat);
     return (
+      <>
       <div style={{ ...BG, padding: "52px 20px 32px" }}>
         <button onClick={() => setView("dashboard")} style={{
           display: "flex", alignItems: "center", gap: 6,
@@ -632,6 +678,8 @@ export default function WorkoutTracker({ user }) {
           </button>
         )}
       </div>
+      {voiceOverlay}
+      </>
     );
   }
 
@@ -723,6 +771,7 @@ export default function WorkoutTracker({ user }) {
           onClose={() => setAiModalCat(null)}
         />
       )}
+      {voiceOverlay}
     </div>
   );
 }
