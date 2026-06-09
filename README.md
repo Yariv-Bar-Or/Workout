@@ -1,5 +1,4 @@
-# 🏋️ Iron Log — יומן ברזל
-
+# 🏋️ LiftLog 
 > A mobile-first workout tracker with real-time multi-device sync and Hebrew RTL UI
 
 [![Live App](https://img.shields.io/badge/Live%20App-Vercel-black?style=flat-square&logo=vercel)](https://hebrew-workout-tracker.vercel.app)
