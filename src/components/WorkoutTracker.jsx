@@ -5,6 +5,7 @@ import { useSupabaseDB as useLocalDB } from '../hooks/useSupabaseDB';
 import { supabase } from '../lib/supabase';
 import MuscleAIModal from './MuscleAIModal';
 import LoadingSpinner from './LoadingSpinner';
+import ExportButton from './ExportButton';
 import { ComposedChart, Line, Customized, XAxis, YAxis, ResponsiveContainer } from "recharts";
 import {
   ChevronLeft, Plus, Dumbbell, TrendingUp, X, Check,
@@ -633,16 +634,19 @@ export default function WorkoutTracker({ user }) {
             <Dumbbell size={24} color="#ff6b35" />
             <span style={{ color: "#ff6b35", fontSize: 12, fontWeight: 800, letterSpacing: 2 }}>LIFT LOG</span>
           </div>
-          <button
-            onClick={() => supabase.auth.signOut()}
-            style={{
-              background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)",
-              borderRadius: 8, color: "#555", fontSize: 12, fontWeight: 600,
-              padding: "6px 12px", cursor: "pointer",
-            }}
-          >
-            יציאה
-          </button>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <ExportButton user={user} />
+            <button
+              onClick={() => supabase.auth.signOut()}
+              style={{
+                background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)",
+                borderRadius: 8, color: "#555", fontSize: 12, fontWeight: 600,
+                padding: "6px 12px", cursor: "pointer",
+              }}
+            >
+              יציאה
+            </button>
+          </div>
         </div>
         <h1 style={{ color: "#f0ede8", fontSize: 28, fontWeight: 900, margin: 0, lineHeight: 1.3 }}>
           ברוך הבא, {user?.user_metadata?.name}! 💪
