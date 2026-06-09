@@ -1,7 +1,7 @@
 "use client";
 import { Mic, MicOff } from "lucide-react";
 
-export default function VoiceButton({ isListening, isSupported, isParsing, onPress }) {
+export default function VoiceButton({ isListening, isSupported, isParsing, liftUp, onPress }) {
   if (!isSupported) return null;
 
   return (
@@ -22,7 +22,7 @@ export default function VoiceButton({ isListening, isSupported, isParsing, onPre
         title={isListening ? "עצור האזנה" : "תיעוד קולי"}
         style={{
           position: "fixed",
-          bottom: "5rem",
+          bottom: liftUp ? "calc(5rem + 72px)" : "5rem",
           right: "1rem",
           zIndex: 1000,
           width: 56,

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useSupabaseDB as useLocalDB } from '../hooks/useSupabaseDB';
 import { supabase } from '../lib/supabase';
 import MuscleAIModal from './MuscleAIModal';
@@ -9,8 +9,11 @@ import ExportButton from './ExportButton';
 import StatsDashboard from './StatsDashboard';
 import { useOfflineSync } from '../hooks/useOfflineSync';
 import { useVoiceLogger } from '../hooks/useVoiceLogger';
+import { useRestTimer } from '../hooks/useRestTimer';
 import VoiceButton from './VoiceButton';
 import VoiceConfirmCard from './VoiceConfirmCard';
+import RestTimerModal from './RestTimerModal';
+import RestTimerBar from './RestTimerBar';
 import { ComposedChart, Line, Customized, XAxis, YAxis, ResponsiveContainer } from "recharts";
 import {
   ChevronLeft, Plus, Dumbbell, TrendingUp, X, Check,
@@ -491,6 +494,17 @@ export default function WorkoutTracker({ user }) {
   const [aiModalCat, setAiModalCat] = useState(null);
   useOfflineSync(user);
   const voiceLogger = useVoiceLogger(exercises, updateExerciseWeight);
+  const { secondsLeft, totalSeconds, isRunning, startTimer, skipTimer } = useRestTimer();
+  const [showTimerModal, setShowTimerModal] = useState(false);
+
+  // Show rest-duration modal once if no preference saved yet
+  useEffect(() => {
+    if (loading) return;
+    const saved = localStorage.getItem("restTimerDuration");
+    if (saved !== null) return;
+    const shown = sessionStorage.getItem("restTimerModalShown");
+    if (!shown) setShowTimerModal(true);
+  }, [loading]);
 
   if (loading) return (
     <div style={{ minHeight: "100vh", background: "#0f0f0f", display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -511,6 +525,8 @@ export default function WorkoutTracker({ user }) {
         sessions: [...live.sessions, { weight: w, reps: r || null, date: ts }]
       });
     }
+    const dur = parseInt(localStorage.getItem("restTimerDuration") || "0", 10);
+    if (dur > 0) startTimer(dur);
   }
 
   function handleDeleteSet(exId, sessionIndex) {
@@ -556,6 +572,7 @@ export default function WorkoutTracker({ user }) {
         isListening={voiceLogger.isListening}
         isSupported={voiceLogger.isSupported}
         isParsing={voiceLogger.isParsing}
+        liftUp={isRunning}
         onPress={voiceLogger.isListening ? voiceLogger.stopListening : voiceLogger.startListening}
       />
       {voiceLogger.pendingConfirm && (
@@ -584,6 +601,13 @@ export default function WorkoutTracker({ user }) {
         }}>
           {voiceLogger.parseError}
         </div>
+      )}
+      {isRunning && (
+        <RestTimerBar
+          secondsLeft={secondsLeft}
+          totalSeconds={totalSeconds}
+          onSkip={skipTimer}
+        />
       )}
     </>
   );
@@ -772,6 +796,9 @@ export default function WorkoutTracker({ user }) {
         />
       )}
       {voiceOverlay}
+      {showTimerModal && (
+        <RestTimerModal onClose={() => setShowTimerModal(false)} />
+      )}
     </div>
   );
 }

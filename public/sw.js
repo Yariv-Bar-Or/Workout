@@ -98,3 +98,34 @@ self.addEventListener("sync", (event) => {
     );
   }
 });
+
+// Show rest-timer notification when the page sends SHOW_TIMER_NOTIFICATION
+self.addEventListener("message", (event) => {
+  if (event.data?.type === "SHOW_TIMER_NOTIFICATION") {
+    event.waitUntil(
+      self.registration.showNotification("⏱ LiftLog", {
+        body: "סיים המנוחה — חזור לאימון!",
+        icon: "/icons/icon-192x192.png",
+        tag: "rest-timer",
+        renotify: true,
+      })
+    );
+  }
+});
+
+// Focus / open the app when the rest-timer notification is tapped
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  event.waitUntil(
+    self.clients
+      .matchAll({ type: "window", includeUncontrolled: true })
+      .then((clients) => {
+        const focused = clients.find((c) => c.focused);
+        if (focused) return focused.focus();
+        const visible = clients.find((c) => c.visibilityState === "visible");
+        if (visible) return visible.focus();
+        if (clients.length > 0) return clients[0].focus();
+        return self.clients.openWindow("/");
+      })
+  );
+});
