@@ -7,14 +7,11 @@
 [![Supabase](https://img.shields.io/badge/Supabase-Backend-3ECF8E?style=flat-square&logo=supabase)](https://supabase.com)
 
 ---
-## 📸 Screenshot
 ## 📸 Screenshots
 
-| | | |
-|---|---|---|
-| ![Login](./screenshots/1.jpeg) | ![Home](./screenshots/2.jpeg) | ![Workout](./screenshots/3.jpeg) |
-
-![Progress](./screenshots/4.jpeg)
+| | | | |
+|---|---|---|---|
+| ![Login](./screenshots/1.jpeg) | ![Home](./screenshots/2.jpeg) | ![Workout](./screenshots/3.jpeg) | ![Progress](./screenshots/4.jpeg) |
 
 ## ✨ Features
 
