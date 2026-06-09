@@ -14,6 +14,7 @@ import VoiceButton from './VoiceButton';
 import VoiceConfirmCard from './VoiceConfirmCard';
 import RestTimerModal from './RestTimerModal';
 import RestTimerBar from './RestTimerBar';
+import TimerCompleteModal from './TimerCompleteModal';
 import { ComposedChart, Line, Customized, XAxis, YAxis, ResponsiveContainer } from "recharts";
 import {
   ChevronLeft, Plus, Dumbbell, TrendingUp, X, Check,
@@ -494,7 +495,7 @@ export default function WorkoutTracker({ user }) {
   const [aiModalCat, setAiModalCat] = useState(null);
   useOfflineSync(user);
   const voiceLogger = useVoiceLogger(exercises, updateExerciseWeight);
-  const { secondsLeft, totalSeconds, isRunning, startTimer, skipTimer } = useRestTimer();
+  const { secondsLeft, totalSeconds, isRunning, showCompletionModal, startTimer, skipTimer, dismissModal } = useRestTimer();
   const [showTimerModal, setShowTimerModal] = useState(false);
 
   // Show rest-duration modal once if no preference saved yet
@@ -612,6 +613,9 @@ export default function WorkoutTracker({ user }) {
       )}
       {showTimerModal && (
         <RestTimerModal onClose={() => setShowTimerModal(false)} />
+      )}
+      {showCompletionModal && (
+        <TimerCompleteModal onDismiss={dismissModal} />
       )}
     </>
   );
