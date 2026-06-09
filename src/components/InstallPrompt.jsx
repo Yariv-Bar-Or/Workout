@@ -9,25 +9,27 @@ export function InstallPrompt() {
 
   return (
     <div style={{
-      position: "fixed", bottom: 20, left: 16, right: 16, zIndex: 999,
+      position: "fixed", bottom: "1rem", left: "1rem", zIndex: 999,
+      maxWidth: 220,
       background: "#1a1a1a", border: "1px solid #333",
-      borderRadius: 16, padding: "14px 16px",
+      borderRadius: 16, padding: "12px 14px",
       boxShadow: "0 8px 32px rgba(0,0,0,0.5)",
-      display: "flex", alignItems: "center", gap: 12,
       fontFamily: "system-ui, -apple-system, sans-serif",
       direction: "rtl",
     }}>
-      <span style={{ fontSize: 28 }}>🏋️</span>
-      <div style={{ flex: 1 }}>
-        <div style={{ color: "#f0ede8", fontWeight: 700, fontSize: 15 }}>התקן את LiftLog</div>
-        <div style={{ color: "#888", fontSize: 13, marginTop: 2 }}>גישה מהירה מהמסך הראשי</div>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+        <span style={{ fontSize: 22 }}>🏋️</span>
+        <div>
+          <div style={{ color: "#f0ede8", fontWeight: 700, fontSize: 13 }}>התקן את LiftLog</div>
+          <div style={{ color: "#888", fontSize: 11, marginTop: 2 }}>גישה מהירה מהמסך הראשי</div>
+        </div>
       </div>
       <button
         onClick={promptInstall}
         style={{
-          background: "#2563eb", border: "none", borderRadius: 10,
-          color: "#fff", fontSize: 14, fontWeight: 700,
-          padding: "8px 16px", cursor: "pointer", flexShrink: 0,
+          width: "100%", background: "#2563eb", border: "none", borderRadius: 8,
+          color: "#fff", fontSize: 13, fontWeight: 700,
+          padding: "7px 0", cursor: "pointer",
         }}
       >
         התקן
