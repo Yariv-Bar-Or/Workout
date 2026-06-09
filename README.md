@@ -33,7 +33,15 @@
 | Deployment | Vercel |
 
 ---
+## 🤖 AI Exercise Suggestions
 
+Each muscle group card has a 💡 button that opens a modal with an AI-generated exercise suggestion.
+
+- **Provider**: Groq API (free, no credit card required) with `llama-3.3-70b-versatile`
+- **Exercise pool**: 20 curated exercises per muscle group (chest, back, shoulders, biceps, triceps, legs)
+- **How it works**: A random exercise is picked from the pool and sent to the AI, which returns a structured explanation in Hebrew including: exercise name, general overview, step-by-step instructions, and injury prevention tips
+- **Environment variable**: `GROQ_API_KEY` in `.env.local`
+- 
 ## 🗂 Architecture
 
 ```
@@ -68,9 +76,8 @@ Open [http://localhost:3000](http://localhost:3000) or visit the [Live App](http
 ## 🧠 What I Learned
 
 The hardest part was making the Recharts `ComposedChart` show all sets as scatter dots on the same vertical axis while keeping the trend line connecting only daily peaks — without the line zigzagging between individual sets. Solving that required separating the data series into two arrays with different shapes and letting Recharts render them as independent layers on the same chart.
-
 Building real-time sync with Supabase subscriptions taught me how to manage stale state: when a remote change arrives via WebSocket, React's local state might already be ahead of it, so the subscription handler needs to merge rather than replace. I also ran into a subtle RTL layout bug in CSS Flexbox where `row-reverse` and `direction: rtl` interact unexpectedly — the fix was to keep the DOM order consistent and rely on `direction` alone to mirror the layout.
-
+Integrating the Groq API taught me how to manage prompt engineering for consistent output structure — getting the model to always respond in Hebrew with professional fitness terminology, keep exercise names in English, and never deviate from the four-section format required a combination of a strong system prompt and hardcoding the exercise name into the user prompt. I also learned that free-tier AI APIs have model deprecation cycles, which required switching models mid-development.
 ---
 
 ## 📄 License
