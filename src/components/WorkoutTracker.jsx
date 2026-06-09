@@ -6,6 +6,7 @@ import { supabase } from '../lib/supabase';
 import MuscleAIModal from './MuscleAIModal';
 import LoadingSpinner from './LoadingSpinner';
 import ExportButton from './ExportButton';
+import StatsDashboard from './StatsDashboard';
 import { ComposedChart, Line, Customized, XAxis, YAxis, ResponsiveContainer } from "recharts";
 import {
   ChevronLeft, Plus, Dumbbell, TrendingUp, X, Check,
@@ -541,6 +542,10 @@ export default function WorkoutTracker({ user }) {
     color: "#f0ede8",
   };
 
+  if (view === "stats") {
+    return <StatsDashboard user={user} onBack={() => setView("dashboard")} />;
+  }
+
   if (view === "exercise" && selectedExercise) {
     const live = exercises.find(e => e.id === selectedExercise.id) || selectedExercise;
     return (
@@ -635,6 +640,13 @@ export default function WorkoutTracker({ user }) {
             <span style={{ color: "#ff6b35", fontSize: 12, fontWeight: 800, letterSpacing: 2 }}>LIFT LOG</span>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <button onClick={() => setView("stats")} style={{
+              background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)",
+              borderRadius: 8, color: "#aaa", fontSize: 12, fontWeight: 600,
+              padding: "6px 12px", cursor: "pointer",
+            }}>
+              📊 סטטיסטיקות
+            </button>
             <ExportButton user={user} />
             <button
               onClick={() => supabase.auth.signOut()}
