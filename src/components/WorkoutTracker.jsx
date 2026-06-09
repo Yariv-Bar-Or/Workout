@@ -428,10 +428,8 @@ function ExerciseDetail({ exercise, onSave, onDeleteSet, onEditSet, onBack }) {
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                   <div>
                     <span style={{ color: "#ff6b35", fontWeight: 700 }}>{session.weight} ק״ג</span>
-                    {session.reps != null && (
-                      <span style={{ color: "#aaa", fontSize: 13 }}> × {session.reps} <span style={{ color: "#555" }}>·</span> </span>
-                    )}
-                    <span style={{ color: "#777", fontSize: 12 }}>{fmt(session.date)}</span>
+                    {session.reps != null && <span style={{ color: "#aaa", fontSize: 13 }}> × {session.reps}</span>}
+                    <span style={{ color: "#777", fontSize: 12, marginRight: 10 }}>{fmt(session.date)}</span>
                   </div>
                   <div style={{ display: "flex", gap: 6 }}>
                     <button onClick={() => {
