@@ -501,8 +501,9 @@ export default function WorkoutTracker({ user }) {
   useEffect(() => {
     if (loading) return;
     const saved = localStorage.getItem("restTimerDuration");
-    if (saved !== null) return;
     const shown = sessionStorage.getItem("restTimerModalShown");
+    console.log("[RestTimerModal] check — restTimerDuration:", saved, "| restTimerModalShown:", shown);
+    if (saved !== null) return;
     if (!shown) setShowTimerModal(true);
   }, [loading]);
 
@@ -608,6 +609,9 @@ export default function WorkoutTracker({ user }) {
           totalSeconds={totalSeconds}
           onSkip={skipTimer}
         />
+      )}
+      {showTimerModal && (
+        <RestTimerModal onClose={() => setShowTimerModal(false)} />
       )}
     </>
   );
@@ -796,9 +800,6 @@ export default function WorkoutTracker({ user }) {
         />
       )}
       {voiceOverlay}
-      {showTimerModal && (
-        <RestTimerModal onClose={() => setShowTimerModal(false)} />
-      )}
     </div>
   );
 }
