@@ -14,6 +14,7 @@ import VoiceButton from './VoiceButton';
 import VoiceConfirmCard from './VoiceConfirmCard';
 import RestTimerModal from './RestTimerModal';
 import RestTimerBar from './RestTimerBar';
+import ShareButton from './ShareButton';
 import { ComposedChart, Line, Customized, XAxis, YAxis, ResponsiveContainer } from "recharts";
 import {
   ChevronLeft, Plus, Dumbbell, TrendingUp, X, Check,
@@ -856,6 +857,8 @@ export default function WorkoutTracker({ user }) {
           );
         })}
       </div>
+
+      <ShareButton exercises={exercises} />
 
       {aiModalCat && (
         <MuscleAIModal
