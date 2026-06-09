@@ -1,4 +1,5 @@
 import { InstallPrompt, OfflineBanner } from "@/components/InstallPrompt";
+import SyncIndicator from "@/components/SyncIndicator";
 
 export const metadata = {
   title: 'Lift Log - מעקב אימונים',
@@ -27,6 +28,7 @@ export default function RootLayout({ children }) {
       </head>
       <body style={{ margin: 0, backgroundColor: '#0f0f0f' }}>
         <OfflineBanner />
+        <SyncIndicator />
         {children}
         <InstallPrompt />
       </body>

@@ -7,6 +7,7 @@ import MuscleAIModal from './MuscleAIModal';
 import LoadingSpinner from './LoadingSpinner';
 import ExportButton from './ExportButton';
 import StatsDashboard from './StatsDashboard';
+import { useOfflineSync } from '../hooks/useOfflineSync';
 import { ComposedChart, Line, Customized, XAxis, YAxis, ResponsiveContainer } from "recharts";
 import {
   ChevronLeft, Plus, Dumbbell, TrendingUp, X, Check,
@@ -483,6 +484,7 @@ export default function WorkoutTracker({ user }) {
   const [addingExercise, setAddingExercise] = useState(false);
   const [newExerciseName, setNewExerciseName] = useState("");
   const [aiModalCat, setAiModalCat] = useState(null);
+  useOfflineSync(user);
 
   if (loading) return (
     <div style={{ minHeight: "100vh", background: "#0f0f0f", display: "flex", alignItems: "center", justifyContent: "center" }}>

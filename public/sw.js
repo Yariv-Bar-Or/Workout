@@ -88,9 +88,13 @@ async function networkFirst(request, cacheName) {
   }
 }
 
-// Placeholder for future background sync
+// Background sync — tell all open clients to run syncQueue
 self.addEventListener("sync", (event) => {
   if (event.tag === "sync-workouts") {
-    console.log("[sw] sync-workouts fired — placeholder for future use");
+    event.waitUntil(
+      self.clients.matchAll({ includeUncontrolled: true, type: "window" }).then((clients) => {
+        clients.forEach((client) => client.postMessage({ type: "SYNC_QUEUE" }));
+      })
+    );
   }
 });
