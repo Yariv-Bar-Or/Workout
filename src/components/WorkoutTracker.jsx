@@ -628,7 +628,7 @@ export default function WorkoutTracker({ user }) {
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <Dumbbell size={24} color="#ff6b35" />
-            <span style={{ color: "#ff6b35", fontSize: 12, fontWeight: 800, letterSpacing: 2 }}>IRON LOG</span>
+            <span style={{ color: "#ff6b35", fontSize: 12, fontWeight: 800, letterSpacing: 2 }}>LIFT LOG</span>
           </div>
           <button
             onClick={() => supabase.auth.signOut()}

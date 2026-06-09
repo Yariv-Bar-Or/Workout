@@ -1,5 +1,5 @@
 export const metadata = {
-  title: 'Iron Log - מעקב אימונים',
+  title: 'Lift Log - מעקב אימונים',
   description: 'אפליקציית מעקב אימונים',
 }
 

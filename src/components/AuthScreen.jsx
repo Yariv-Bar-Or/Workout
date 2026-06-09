@@ -114,7 +114,7 @@ export default function AuthScreen() {
           <div style={{ textAlign: "center", marginBottom: 40 }}>
             <Dumbbell size={36} color="#ff6b35" style={{ marginBottom: 12 }} />
             <div style={{ color: "#ff6b35", fontSize: 12, fontWeight: 800, letterSpacing: 2, marginBottom: 6 }}>
-              IRON LOG
+              LIFT LOG
             </div>
             <h1 style={{ color: "#f0ede8", fontSize: 28, fontWeight: 900, margin: 0, lineHeight: 1.3 }}>
               ברוך הבא!
@@ -149,7 +149,7 @@ export default function AuthScreen() {
         <div style={{ textAlign: "center", marginBottom: 40 }}>
           <Dumbbell size={36} color="#ff6b35" style={{ marginBottom: 12 }} />
           <div style={{ color: "#ff6b35", fontSize: 12, fontWeight: 800, letterSpacing: 2, marginBottom: 6 }}>
-            IRON LOG
+            LIFT LOG
           </div>
           <h1 style={{ color: "#f0ede8", fontSize: 28, fontWeight: 900, margin: 0, lineHeight: 1.3 }}>
             {mode === "login" ? "ברוך הבא" : "יצירת חשבון"}
