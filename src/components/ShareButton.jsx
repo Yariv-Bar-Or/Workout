@@ -10,25 +10,20 @@ export default function ShareButton({ exercises }) {
     <button
       onClick={generateCard}
       disabled={isGenerating}
-      dir="rtl"
       style={{
         display: "flex",
         alignItems: "center",
-        justifyContent: "center",
-        gap: 8,
-        width: "100%",
-        marginTop: 20,
-        padding: "14px 20px",
-        background: "rgba(255,255,255,0.05)",
+        gap: 6,
+        background: "#1a1a1a",
         border: "1px solid rgba(255,255,255,0.12)",
-        borderRadius: 14,
-        color: isGenerating ? "#555" : "#f0ede8",
-        fontSize: 16,
-        fontWeight: 700,
+        borderRadius: 8,
+        color: isGenerating ? "#555" : "#ccc",
+        fontSize: 12,
+        fontWeight: 600,
+        padding: "6px 12px",
         cursor: isGenerating ? "not-allowed" : "pointer",
+        opacity: isGenerating ? 0.6 : 1,
         WebkitTapHighlightColor: "transparent",
-        transition: "background 0.15s",
-        fontFamily: "system-ui, -apple-system, sans-serif",
       }}
     >
       {isGenerating ? "מייצר..." : "📤 שתף אימון"}

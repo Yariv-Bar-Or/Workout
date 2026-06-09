@@ -793,6 +793,7 @@ export default function WorkoutTracker({ user }) {
               📊 סטטיסטיקות
             </button>
             <ExportButton user={user} />
+            <ShareButton exercises={exercises} />
             <button
               onClick={() => supabase.auth.signOut()}
               style={{
@@ -857,8 +858,6 @@ export default function WorkoutTracker({ user }) {
           );
         })}
       </div>
-
-      <ShareButton exercises={exercises} />
 
       {aiModalCat && (
         <MuscleAIModal
