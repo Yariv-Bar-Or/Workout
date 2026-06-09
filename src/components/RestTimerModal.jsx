@@ -5,6 +5,7 @@ const DURATIONS = [60, 120, 180, 240];
 export default function RestTimerModal({ onClose }) {
   function handleSelect(seconds) {
     localStorage.setItem("restTimerDuration", String(seconds));
+    sessionStorage.setItem("restTimerModalShown", "1");
     onClose();
   }
 

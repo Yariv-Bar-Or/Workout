@@ -14,7 +14,6 @@ import VoiceButton from './VoiceButton';
 import VoiceConfirmCard from './VoiceConfirmCard';
 import RestTimerModal from './RestTimerModal';
 import RestTimerBar from './RestTimerBar';
-import TimerCompleteModal from './TimerCompleteModal';
 import { ComposedChart, Line, Customized, XAxis, YAxis, ResponsiveContainer } from "recharts";
 import {
   ChevronLeft, Plus, Dumbbell, TrendingUp, X, Check,
@@ -495,15 +494,16 @@ export default function WorkoutTracker({ user }) {
   const [aiModalCat, setAiModalCat] = useState(null);
   useOfflineSync(user);
   const voiceLogger = useVoiceLogger(exercises, updateExerciseWeight);
-  const { secondsLeft, totalSeconds, isRunning, showCompletionModal, startTimer, skipTimer, dismissModal } = useRestTimer();
+  const { secondsLeft, totalSeconds, isRunning, startTimer, skipTimer } = useRestTimer();
   const [showTimerModal, setShowTimerModal] = useState(false);
 
   // Show rest-duration modal once if no preference saved yet
   useEffect(() => {
     if (loading) return;
     const saved = localStorage.getItem("restTimerDuration");
-    console.log("[RestTimerModal] check — restTimerDuration:", saved);
-    if (saved === null) setShowTimerModal(true);
+    if (saved !== null) return;
+    const shown = sessionStorage.getItem("restTimerModalShown");
+    if (!shown) setShowTimerModal(true);
   }, [loading]);
 
   if (loading) return (
@@ -608,12 +608,6 @@ export default function WorkoutTracker({ user }) {
           totalSeconds={totalSeconds}
           onSkip={skipTimer}
         />
-      )}
-      {showTimerModal && (
-        <RestTimerModal onClose={() => setShowTimerModal(false)} />
-      )}
-      {showCompletionModal && (
-        <TimerCompleteModal onDismiss={dismissModal} />
       )}
     </>
   );
@@ -802,6 +796,9 @@ export default function WorkoutTracker({ user }) {
         />
       )}
       {voiceOverlay}
+      {showTimerModal && (
+        <RestTimerModal onClose={() => setShowTimerModal(false)} />
+      )}
     </div>
   );
 }
