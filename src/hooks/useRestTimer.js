@@ -5,6 +5,7 @@ export function useRestTimer() {
   const [secondsLeft, setSecondsLeft] = useState(0);
   const [totalSeconds, setTotalSeconds] = useState(0);
   const [isRunning, setIsRunning] = useState(false);
+  const [timerComplete, setTimerComplete] = useState(false);
 
   // Tick once per second while running
   useEffect(() => {
@@ -13,16 +14,18 @@ export function useRestTimer() {
     return () => clearTimeout(t);
   }, [isRunning, secondsLeft]);
 
-  // When countdown hits 0: alert and auto-dismiss
+  // When countdown hits 0
   useEffect(() => {
     if (isRunning && secondsLeft === 0) {
+      console.log("TIMER HIT ZERO");
       setIsRunning(false);
-      window.alert("⏱ סיום מנוחה! לחץ אישור להמשיך");
+      setTimerComplete(true);
     }
   }, [isRunning, secondsLeft]);
 
   const startTimer = useCallback((duration) => {
     if (!duration || duration <= 0) return;
+    setTimerComplete(false);
     setTotalSeconds(duration);
     setSecondsLeft(duration);
     setIsRunning(true);
@@ -32,7 +35,12 @@ export function useRestTimer() {
     setIsRunning(false);
     setSecondsLeft(0);
     setTotalSeconds(0);
+    setTimerComplete(false);
   }, []);
 
-  return { secondsLeft, totalSeconds, isRunning, startTimer, skipTimer };
+  const dismissComplete = useCallback(() => {
+    setTimerComplete(false);
+  }, []);
+
+  return { secondsLeft, totalSeconds, isRunning, timerComplete, startTimer, skipTimer, dismissComplete };
 }

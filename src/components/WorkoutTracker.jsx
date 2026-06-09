@@ -484,6 +484,24 @@ function ExerciseDetail({ exercise, onSave, onDeleteSet, onEditSet, onBack }) {
   );
 }
 
+function playBeep() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const oscillator = ctx.createOscillator();
+    const gainNode = ctx.createGain();
+    oscillator.connect(gainNode);
+    gainNode.connect(ctx.destination);
+    oscillator.frequency.value = 800;
+    oscillator.type = "sine";
+    gainNode.gain.setValueAtTime(0.3, ctx.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.5);
+    oscillator.start(ctx.currentTime);
+    oscillator.stop(ctx.currentTime + 0.5);
+  } catch (e) {
+    console.warn("Beep failed:", e);
+  }
+}
+
 export default function WorkoutTracker({ user }) {
   const { exercises, loading, addExercise, updateExerciseWeight, deleteSet, editSet } = useLocalDB(user);
   const [view, setView] = useState("dashboard");
@@ -494,7 +512,7 @@ export default function WorkoutTracker({ user }) {
   const [aiModalCat, setAiModalCat] = useState(null);
   useOfflineSync(user);
   const voiceLogger = useVoiceLogger(exercises, updateExerciseWeight);
-  const { secondsLeft, totalSeconds, isRunning, startTimer, skipTimer } = useRestTimer();
+  const { secondsLeft, totalSeconds, isRunning, timerComplete, startTimer, skipTimer, dismissComplete } = useRestTimer();
   const [showTimerModal, setShowTimerModal] = useState(false);
 
   // Show rest-duration modal once if no preference saved yet
@@ -505,6 +523,14 @@ export default function WorkoutTracker({ user }) {
     const shown = sessionStorage.getItem("restTimerModalShown");
     if (!shown) setShowTimerModal(true);
   }, [loading]);
+
+  // Repeating beep while the completion modal is open
+  useEffect(() => {
+    if (!timerComplete) return;
+    playBeep();
+    const id = setInterval(playBeep, 2000);
+    return () => clearInterval(id);
+  }, [timerComplete]);
 
   if (loading) return (
     <div style={{ minHeight: "100vh", background: "#0f0f0f", display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -608,6 +634,48 @@ export default function WorkoutTracker({ user }) {
           totalSeconds={totalSeconds}
           onSkip={skipTimer}
         />
+      )}
+      {timerComplete && (
+        <div
+          onClick={dismissComplete}
+          style={{
+            position: "fixed", inset: 0,
+            background: "rgba(0,0,0,0.75)",
+            zIndex: 9999,
+            display: "flex", alignItems: "center", justifyContent: "center",
+          }}
+        >
+          <div style={{
+            background: "#1a1a1a",
+            border: "1px solid rgba(255,107,53,0.4)",
+            borderRadius: 20,
+            padding: "32px 40px",
+            textAlign: "center",
+            direction: "rtl",
+          }}>
+            <div style={{ fontSize: 48, marginBottom: 12 }}>⏱</div>
+            <div style={{ color: "#f0ede8", fontSize: 22, fontWeight: 800, marginBottom: 8 }}>
+              סיום מנוחה!
+            </div>
+            <div style={{ color: "#888", fontSize: 14, marginBottom: 24 }}>
+              חזור לאימון
+            </div>
+            <button
+              onClick={dismissComplete}
+              style={{
+                background: "#ff6b35", color: "#fff",
+                border: "none", borderRadius: 12,
+                padding: "12px 32px", fontSize: 16, fontWeight: 700,
+                cursor: "pointer", WebkitTapHighlightColor: "transparent",
+              }}
+            >
+              אישור
+            </button>
+          </div>
+        </div>
+      )}
+      {showTimerModal && (
+        <RestTimerModal onClose={() => setShowTimerModal(false)} />
       )}
     </>
   );
@@ -796,9 +864,6 @@ export default function WorkoutTracker({ user }) {
         />
       )}
       {voiceOverlay}
-      {showTimerModal && (
-        <RestTimerModal onClose={() => setShowTimerModal(false)} />
-      )}
     </div>
   );
 }
