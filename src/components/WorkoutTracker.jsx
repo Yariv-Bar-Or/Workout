@@ -533,6 +533,8 @@ export default function WorkoutTracker({ user }) {
     return () => clearInterval(id);
   }, [timerComplete]);
 
+  console.log('[WorkoutTracker] loading:', loading, '| view:', view);
+
   if (loading) return (
     <div style={{ minHeight: "100vh", background: "#0f0f0f", display: "flex", alignItems: "center", justifyContent: "center" }}>
       <LoadingSpinner />
