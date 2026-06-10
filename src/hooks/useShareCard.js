@@ -2,7 +2,10 @@
 import { useState, useCallback, useMemo } from "react";
 
 function isToday(dateMs) {
-  const d = new Date(dateMs);
+  // Coerce to number — Supabase JSONB may return large integers as strings
+  const ms = Number(dateMs);
+  if (!ms || isNaN(ms)) return false;
+  const d = new Date(ms);
   const now = new Date();
   return (
     d.getFullYear() === now.getFullYear() &&
@@ -15,9 +18,17 @@ export function useShareCard(exercises) {
   const [isGenerating, setIsGenerating] = useState(false);
 
   const summary = useMemo(() => {
+    const nowDebug = new Date();
+    console.log("[useShareCard] recomputing — today local:", nowDebug.toLocaleDateString(), "| exercises:", exercises.length);
     const todayExercises = exercises
       .map((ex) => {
-        const todaySessions = ex.sessions.filter((s) => isToday(s.date));
+        const todaySessions = ex.sessions.filter((s) => {
+          const result = isToday(s.date);
+          if (ex.sessions.length > 0) {
+            console.log(`[useShareCard] "${ex.name}" session date raw:`, s.date, typeof s.date, "→ isToday:", result);
+          }
+          return result;
+        });
         if (!todaySessions.length) return null;
 
         const allTimeBest = ex.sessions.reduce((m, s) => Math.max(m, s.weight), 0);
