@@ -278,6 +278,7 @@ function ExerciseDetail({ exercise, onSave, onDeleteSet, onEditSet, onBack }) {
   const [date, setDate] = useState(() => new Date().toISOString().split("T")[0]);
   const [saved, setSaved] = useState(false);
   const [showChart, setShowChart] = useState(false);
+  const [showSets, setShowSets] = useState(false);
   const [editingIndex, setEditingIndex] = useState(null);
   const [editWeight, setEditWeight] = useState("");
   const [editReps, setEditReps] = useState("");
@@ -393,7 +394,20 @@ function ExerciseDetail({ exercise, onSave, onDeleteSet, onEditSet, onBack }) {
 
       {exercise.sessions.length > 0 && (
         <div style={{ marginBottom: 20 }}>
-          <div style={{ color: "#555", fontSize: 11, fontWeight: 700, textTransform: "uppercase", marginBottom: 10 }}>סטים מתועדים</div>
+          <button onClick={() => setShowSets(v => !v)} style={{
+            width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between",
+            background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)",
+            borderRadius: 12, padding: "12px 16px", cursor: "pointer", color: "#f0ede8",
+            fontSize: 14, fontWeight: 600, marginBottom: showSets ? 10 : 0,
+          }}>
+            <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              סטים מתועדים
+              <span style={{ color: "#555", fontSize: 12, fontWeight: 500 }}>({exercise.sessions.length})</span>
+            </span>
+            {showSets ? <ChevronUp size={16} color="#555" /> : <ChevronDown size={16} color="#555" />}
+          </button>
+          {showSets && (
+          <div style={{ maxHeight: 320, overflowY: "auto" }}>
           {reversedSessions.map(({ originalIndex, ...session }) => (
             <div key={originalIndex} style={{
               background: "rgba(255,255,255,0.03)", borderRadius: 10,
@@ -465,6 +479,8 @@ function ExerciseDetail({ exercise, onSave, onDeleteSet, onEditSet, onBack }) {
               )}
             </div>
           ))}
+          </div>
+          )}
         </div>
       )}
 
