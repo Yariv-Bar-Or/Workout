@@ -345,20 +345,22 @@ function ExerciseDetail({ exercise, onSave, onDeleteSet, onEditSet, onBack }) {
         <div style={{ color: "#ff6b35", fontSize: 12, fontWeight: 700, letterSpacing: 1, textTransform: "uppercase", marginBottom: 16 }}>
           תיעוד סט
         </div>
-        <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "nowrap", marginBottom: 12 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
           <input
             ref={inputRef}
             type="number" inputMode="decimal" placeholder="0.0"
             value={weight} onChange={e => setWeight(e.target.value)}
             onKeyDown={e => e.key === "Enter" && handleSave()}
             style={{
-              flex: 2, height: 58, background: "rgba(0,0,0,0.3)",
+              flex: 1, height: 58, background: "rgba(0,0,0,0.3)",
               border: "1px solid rgba(255,107,53,0.3)", borderRadius: 14,
               color: "#f0ede8", fontSize: 24, fontWeight: 700, textAlign: "center",
               outline: "none", padding: "0 12px",
             }}
           />
           <span style={{ color: "#777", fontSize: 14, fontWeight: 600, flexShrink: 0 }}>ק״ג</span>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
           <input
             type="number" inputMode="numeric" placeholder="חזרות"
             value={reps} onChange={e => setReps(e.target.value)}
