@@ -352,10 +352,10 @@ function ExerciseDetail({ exercise, onSave, onDeleteSet, onEditSet, onBack }) {
             value={weight} onChange={e => setWeight(e.target.value)}
             onKeyDown={e => e.key === "Enter" && handleSave()}
             style={{
-              flex: 1, height: 58, background: "rgba(0,0,0,0.3)",
+              flex: 1, maxWidth: "100%", height: 58, background: "rgba(0,0,0,0.3)",
               border: "1px solid rgba(255,107,53,0.3)", borderRadius: 14,
               color: "#f0ede8", fontSize: 24, fontWeight: 700, textAlign: "center",
-              outline: "none", padding: "0 12px",
+              outline: "none", padding: "0 12px", minWidth: 0,
             }}
           />
           <span style={{ color: "#777", fontSize: 14, fontWeight: 600, flexShrink: 0 }}>ק״ג</span>
@@ -612,7 +612,7 @@ export default function WorkoutTracker({ user }) {
   const BG = {
     background: "linear-gradient(135deg, #0f0f0f 0%, #1a1a1a 100%)",
     minHeight: "100vh", fontFamily: "system-ui, -apple-system, sans-serif",
-    color: "#f0ede8",
+    color: "#f0ede8", overflowX: "hidden",
   };
 
   const voiceOverlay = (

@@ -33,7 +33,7 @@ export default function RootLayout({ children }) {
         <meta name="apple-mobile-web-app-title" content="LiftLog" />
         <link rel="apple-touch-icon" href="/icons/icon-192x192.png" />
       </head>
-      <body style={{ margin: 0, backgroundColor: '#0f0f0f' }}>
+      <body style={{ margin: 0, backgroundColor: '#0f0f0f', overflowX: 'hidden' }}>
         <OfflineBanner />
         <SyncIndicator />
         {children}
