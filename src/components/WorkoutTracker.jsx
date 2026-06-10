@@ -345,40 +345,42 @@ function ExerciseDetail({ exercise, onSave, onDeleteSet, onEditSet, onBack }) {
         <div style={{ color: "#ff6b35", fontSize: 12, fontWeight: 700, letterSpacing: 1, textTransform: "uppercase", marginBottom: 16 }}>
           תיעוד סט
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 54px", gap: 10, marginBottom: 10 }}>
           <input
             ref={inputRef}
             type="number" inputMode="decimal" placeholder="0.0"
             value={weight} onChange={e => setWeight(e.target.value)}
             onKeyDown={e => e.key === "Enter" && handleSave()}
             style={{
-              flex: 1, maxWidth: "100%", height: 58, background: "rgba(0,0,0,0.3)",
+              width: "100%", height: 54, background: "rgba(0,0,0,0.3)",
               border: "1px solid rgba(255,107,53,0.3)", borderRadius: 14,
-              color: "#f0ede8", fontSize: 24, fontWeight: 700, textAlign: "center",
-              outline: "none", padding: "0 12px", minWidth: 0,
+              color: "#f0ede8", fontSize: 22, fontWeight: 700, textAlign: "center",
+              outline: "none", padding: "0 12px", boxSizing: "border-box",
             }}
           />
-          <span style={{ color: "#777", fontSize: 14, fontWeight: 600, flexShrink: 0 }}>ק״ג</span>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <span style={{ color: "#777", fontSize: 14, fontWeight: 600 }}>ק״ג</span>
+          </div>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 54px", gap: 10, marginBottom: 12 }}>
           <input
             type="number" inputMode="numeric" placeholder="חזרות"
             value={reps} onChange={e => setReps(e.target.value)}
             onKeyDown={e => e.key === "Enter" && handleSave()}
             style={{
-              flex: 1, height: 58, background: "rgba(0,0,0,0.3)",
+              width: "100%", height: 54, background: "rgba(0,0,0,0.3)",
               border: "1px solid rgba(255,107,53,0.15)", borderRadius: 14,
-              color: "#f0ede8", fontSize: 20, fontWeight: 700, textAlign: "center",
-              outline: "none", padding: "0 8px",
+              color: "#f0ede8", fontSize: 22, fontWeight: 700, textAlign: "center",
+              outline: "none", padding: "0 8px", boxSizing: "border-box",
             }}
           />
           <button onClick={handleSave} style={{
-            width: 58, height: 58, borderRadius: 14, border: "none",
+            width: 54, height: 54, borderRadius: 14, border: "none",
             background: saved ? "#22c55e" : "#ff6b35",
             color: "#fff", display: "flex", alignItems: "center", justifyContent: "center",
-            cursor: "pointer", flexShrink: 0,
+            cursor: "pointer",
           }}>
-            {saved ? <Check size={24} /> : <Zap size={24} />}
+            {saved ? <Check size={22} /> : <Zap size={22} />}
           </button>
         </div>
         <input
