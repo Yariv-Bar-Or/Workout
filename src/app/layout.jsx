@@ -1,6 +1,13 @@
 import { InstallPrompt, OfflineBanner } from "@/components/InstallPrompt";
 import SyncIndicator from "@/components/SyncIndicator";
 
+export const viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+}
+
 export const metadata = {
   title: 'Lift Log - מעקב אימונים',
   description: 'אפליקציית מעקב אימונים',
@@ -19,7 +26,6 @@ export default function RootLayout({ children }) {
   return (
     <html lang="he" dir="rtl">
       <head>
-        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
         <link rel="manifest" href="/manifest.json" />
         <meta name="theme-color" content="#0a0a0a" />
         <meta name="apple-mobile-web-app-capable" content="yes" />

@@ -308,19 +308,19 @@ function ExerciseDetail({ exercise, onSave, onDeleteSet, onEditSet, onBack }) {
       <button onClick={onBack} style={{
         display: "flex", alignItems: "center", gap: 6,
         background: "none", border: "none", color: "#ff6b35",
-        fontSize: 15, fontWeight: 600, cursor: "pointer", padding: 0, marginBottom: 20,
+        fontSize: 15, fontWeight: 600, cursor: "pointer", padding: 0, marginBottom: 28,
       }}>
         <ChevronLeft size={18} style={{ transform: "rotate(180deg)" }} /> חזרה
       </button>
 
-      <div style={{ marginBottom: 24 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
+      <div style={{ marginBottom: 32 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
           <CategoryBadge cat={exercise.category} />
         </div>
-        <h2 style={{ color: "#f0ede8", fontSize: 26, fontWeight: 800, margin: 0 }}>{exercise.name}</h2>
+        <h2 style={{ color: "#f0ede8", fontSize: 28, fontWeight: 800, margin: 0 }}>{exercise.name}</h2>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 24 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 32 }}>
         {[
           { label: "סט אחרון", value: last ? `${last.weight} ק״ג` : "—", sub: last ? (last.reps != null ? `${last.reps} חזרות · ${fmt(last.date)}` : fmt(last.date)) : "" },
           { label: "שיא אישי", value: best ? `${best} ק״ג` : "—", sub: "" },
@@ -328,33 +328,33 @@ function ExerciseDetail({ exercise, onSave, onDeleteSet, onEditSet, onBack }) {
           { label: "החודש", value: exercise.sessions.filter(s => s.date > Date.now() - 30 * 86400000).length + " סטים", sub: "" },
         ].map(c => (
           <div key={c.label} style={{
-            background: "rgba(255,255,255,0.04)", borderRadius: 12,
-            padding: "12px 14px", border: "1px solid rgba(255,255,255,0.07)",
+            background: "rgba(255,255,255,0.04)", borderRadius: 14,
+            padding: "16px 18px", border: "1px solid rgba(255,255,255,0.07)",
           }}>
-            <div style={{ color: "#666", fontSize: 11, fontWeight: 600, textTransform: "uppercase", marginBottom: 4 }}>{c.label}</div>
-            <div style={{ color: "#f0ede8", fontSize: 20, fontWeight: 800 }}>{c.value}</div>
-            {c.sub && <div style={{ color: "#555", fontSize: 12, marginTop: 2 }}>{c.sub}</div>}
+            <div style={{ color: "#555", fontSize: 11, fontWeight: 600, textTransform: "uppercase", marginBottom: 6 }}>{c.label}</div>
+            <div style={{ color: "#f0ede8", fontSize: 24, fontWeight: 800 }}>{c.value}</div>
+            {c.sub && <div style={{ color: "#555", fontSize: 12, marginTop: 4 }}>{c.sub}</div>}
           </div>
         ))}
       </div>
 
       <div style={{
         background: "rgba(255, 107, 53, 0.06)", border: "1px solid rgba(255,107,53,0.2)",
-        borderRadius: 16, padding: 20, marginBottom: 20,
+        borderRadius: 18, padding: 24, marginBottom: 28,
       }}>
-        <div style={{ color: "#ff6b35", fontSize: 12, fontWeight: 700, letterSpacing: 1, textTransform: "uppercase", marginBottom: 12 }}>
+        <div style={{ color: "#ff6b35", fontSize: 12, fontWeight: 700, letterSpacing: 1, textTransform: "uppercase", marginBottom: 16 }}>
           תיעוד סט
         </div>
-        <div style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 10 }}>
+        <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "nowrap", marginBottom: 12 }}>
           <input
             ref={inputRef}
             type="number" inputMode="decimal" placeholder="0.0"
             value={weight} onChange={e => setWeight(e.target.value)}
             onKeyDown={e => e.key === "Enter" && handleSave()}
             style={{
-              flex: 2, height: 52, background: "rgba(0,0,0,0.3)",
-              border: "1px solid rgba(255,107,53,0.3)", borderRadius: 12,
-              color: "#f0ede8", fontSize: 22, fontWeight: 700, textAlign: "center",
+              flex: 2, height: 58, background: "rgba(0,0,0,0.3)",
+              border: "1px solid rgba(255,107,53,0.3)", borderRadius: 14,
+              color: "#f0ede8", fontSize: 24, fontWeight: 700, textAlign: "center",
               outline: "none", padding: "0 12px",
             }}
           />
@@ -364,19 +364,19 @@ function ExerciseDetail({ exercise, onSave, onDeleteSet, onEditSet, onBack }) {
             value={reps} onChange={e => setReps(e.target.value)}
             onKeyDown={e => e.key === "Enter" && handleSave()}
             style={{
-              flex: 1, height: 52, background: "rgba(0,0,0,0.3)",
-              border: "1px solid rgba(255,107,53,0.15)", borderRadius: 12,
-              color: "#f0ede8", fontSize: 18, fontWeight: 700, textAlign: "center",
+              flex: 1, height: 58, background: "rgba(0,0,0,0.3)",
+              border: "1px solid rgba(255,107,53,0.15)", borderRadius: 14,
+              color: "#f0ede8", fontSize: 20, fontWeight: 700, textAlign: "center",
               outline: "none", padding: "0 8px",
             }}
           />
           <button onClick={handleSave} style={{
-            width: 52, height: 52, borderRadius: 12, border: "none",
+            width: 58, height: 58, borderRadius: 14, border: "none",
             background: saved ? "#22c55e" : "#ff6b35",
             color: "#fff", display: "flex", alignItems: "center", justifyContent: "center",
             cursor: "pointer", flexShrink: 0,
           }}>
-            {saved ? <Check size={22} /> : <Zap size={22} />}
+            {saved ? <Check size={24} /> : <Zap size={24} />}
           </button>
         </div>
         <input
@@ -384,7 +384,7 @@ function ExerciseDetail({ exercise, onSave, onDeleteSet, onEditSet, onBack }) {
           value={date}
           onChange={e => setDate(e.target.value)}
           style={{
-            width: "100%", height: 44, background: "rgba(0,0,0,0.3)",
+            width: "100%", height: 46, background: "rgba(0,0,0,0.3)",
             border: "1px solid rgba(255,107,53,0.15)", borderRadius: 12,
             color: "#f0ede8", fontSize: 15, textAlign: "center",
             outline: "none", padding: "0 12px", boxSizing: "border-box",
@@ -393,11 +393,11 @@ function ExerciseDetail({ exercise, onSave, onDeleteSet, onEditSet, onBack }) {
       </div>
 
       {exercise.sessions.length > 0 && (
-        <div style={{ marginBottom: 20 }}>
+        <div style={{ marginBottom: 0 }}>
           <button onClick={() => setShowSets(v => !v)} style={{
             width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between",
             background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)",
-            borderRadius: 12, padding: "12px 16px", cursor: "pointer", color: "#f0ede8",
+            borderRadius: 12, padding: "14px 18px", cursor: "pointer", color: "#f0ede8",
             fontSize: 14, fontWeight: 600, marginBottom: showSets ? 10 : 0,
           }}>
             <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -484,10 +484,12 @@ function ExerciseDetail({ exercise, onSave, onDeleteSet, onEditSet, onBack }) {
         </div>
       )}
 
+      <div style={{ height: 1, background: "rgba(255,255,255,0.06)", margin: "12px 0" }} />
+
       <button onClick={() => setShowChart(v => !v)} style={{
         width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between",
         background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)",
-        borderRadius: 12, padding: "12px 16px", cursor: "pointer", color: "#f0ede8",
+        borderRadius: 12, padding: "14px 18px", cursor: "pointer", color: "#f0ede8",
         fontSize: 14, fontWeight: 600,
       }}>
         <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -707,7 +709,7 @@ export default function WorkoutTracker({ user }) {
     const live = exercises.find(e => e.id === selectedExercise.id) || selectedExercise;
     return (
       <>
-        <div style={{ ...BG, padding: "52px 20px 32px" }}>
+        <div style={{ ...BG, padding: "52px 20px 100px" }}>
           <ExerciseDetail
             exercise={live}
             onSave={handleSaveWeight}
@@ -725,7 +727,7 @@ export default function WorkoutTracker({ user }) {
     const catInfo = CATS.find(c => c.key === selectedCat);
     return (
       <>
-      <div style={{ ...BG, padding: "52px 20px 32px" }}>
+      <div style={{ ...BG, padding: "52px 20px 100px" }}>
         <button onClick={() => setView("dashboard")} style={{
           display: "flex", alignItems: "center", gap: 6,
           background: "none", border: "none", color: catInfo.color,
@@ -795,7 +797,7 @@ export default function WorkoutTracker({ user }) {
   }
 
   return (
-    <div style={{ ...BG, padding: "52px 20px 32px" }}>
+    <div style={{ ...BG, padding: "52px 20px 100px" }}>
       <div style={{ marginBottom: 32 }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>

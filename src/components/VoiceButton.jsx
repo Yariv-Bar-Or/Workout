@@ -8,8 +8,8 @@ export default function VoiceButton({ isListening, isSupported, isParsing, liftU
     <>
       <style>{`
         @keyframes voicePulse {
-          0%   { box-shadow: 0 0 0 0 rgba(239,68,68,0.5); }
-          70%  { box-shadow: 0 0 0 14px rgba(239,68,68,0); }
+          0%   { box-shadow: 0 0 0 0 rgba(239,68,68,0.4); }
+          70%  { box-shadow: 0 0 0 10px rgba(239,68,68,0); }
           100% { box-shadow: 0 0 0 0 rgba(239,68,68,0); }
         }
         @keyframes voiceSpin {
@@ -17,43 +17,60 @@ export default function VoiceButton({ isListening, isSupported, isParsing, liftU
           to   { transform: rotate(360deg); }
         }
       `}</style>
-      <button
-        onClick={onPress}
-        title={isListening ? "עצור האזנה" : "תיעוד קולי"}
-        style={{
-          position: "fixed",
-          bottom: liftUp ? "calc(5rem + 72px)" : "5rem",
-          right: "1rem",
-          zIndex: 1000,
-          width: 56,
-          height: 56,
-          borderRadius: "50%",
-          border: "none",
-          background: isListening ? "#ef4444" : "#ff6b35",
-          color: "#fff",
-          cursor: "pointer",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          boxShadow: "0 4px 16px rgba(0,0,0,0.4)",
-          animation: isListening ? "voicePulse 1.2s ease-in-out infinite" : "none",
-          transition: "background 0.2s",
-          WebkitTapHighlightColor: "transparent",
-        }}
-      >
-        {isParsing ? (
-          <div style={{
-            width: 20,
-            height: 20,
-            border: "2.5px solid rgba(255,255,255,0.3)",
-            borderTop: "2.5px solid #fff",
-            borderRadius: "50%",
-            animation: "voiceSpin 0.8s linear infinite",
-          }} />
-        ) : (
-          isListening ? <MicOff size={22} /> : <Mic size={22} />
-        )}
-      </button>
+      <div style={{
+        position: "fixed",
+        bottom: liftUp ? 72 : 0,
+        left: 0,
+        right: 0,
+        zIndex: 1000,
+        height: 72,
+        background: "rgba(10,10,10,0.96)",
+        borderTop: isListening
+          ? "1px solid rgba(239,68,68,0.3)"
+          : "1px solid rgba(255,255,255,0.08)",
+        backdropFilter: "blur(10px)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        transition: "bottom 0.2s",
+      }}>
+        <button
+          onClick={onPress}
+          title={isListening ? "עצור האזנה" : "תיעוד קולי"}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            background: isListening ? "rgba(239,68,68,0.12)" : "rgba(255,107,53,0.08)",
+            border: isListening
+              ? "1px solid rgba(239,68,68,0.3)"
+              : "1px solid rgba(255,107,53,0.2)",
+            borderRadius: 16,
+            padding: "11px 28px",
+            color: isListening ? "#ef4444" : "#ff6b35",
+            fontSize: 15,
+            fontWeight: 700,
+            cursor: "pointer",
+            WebkitTapHighlightColor: "transparent",
+            animation: isListening ? "voicePulse 1.2s ease-in-out infinite" : "none",
+          }}
+        >
+          {isParsing ? (
+            <div style={{
+              width: 20,
+              height: 20,
+              border: "2.5px solid rgba(255,107,53,0.3)",
+              borderTop: "2.5px solid #ff6b35",
+              borderRadius: "50%",
+              animation: "voiceSpin 0.8s linear infinite",
+              flexShrink: 0,
+            }} />
+          ) : (
+            isListening ? <MicOff size={20} /> : <Mic size={20} />
+          )}
+          <span>{isParsing ? "מעבד..." : isListening ? "מאזין..." : "תיעוד קולי"}</span>
+        </button>
+      </div>
     </>
   );
 }
