@@ -8,6 +8,8 @@ import LoadingSpinner from "../components/LoadingSpinner";
 export default function Page() {
   const { user, session, loading, needsName } = useAuth();
 
+  console.log('[Page] loading:', loading, '| session:', !!session, '| needsName:', needsName);
+
   if (loading) return (
     <div style={{ minHeight: "100vh", background: "#0f0f0f", display: "flex", alignItems: "center", justifyContent: "center" }}>
       <LoadingSpinner />
