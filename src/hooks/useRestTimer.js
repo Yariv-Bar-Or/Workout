@@ -19,6 +19,9 @@ export function useRestTimer() {
     if (isRunning && secondsLeft === 0) {
       setIsRunning(false);
       setTimerComplete(true);
+      if (typeof Notification !== "undefined" && Notification.permission === "granted") {
+        fetch("/api/push/send", { method: "POST" }).catch(() => {});
+      }
     }
   }, [isRunning, secondsLeft]);
 

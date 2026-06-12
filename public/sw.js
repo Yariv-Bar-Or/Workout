@@ -99,6 +99,20 @@ self.addEventListener("sync", (event) => {
   }
 });
 
+// Web push notification
+self.addEventListener("push", (event) => {
+  const data = event.data?.json() ?? {};
+  event.waitUntil(
+    self.registration.showNotification(data.title ?? "LiftLog ⏱️", {
+      body: data.body,
+      icon: data.icon ?? "/icons/icon-192x192.png",
+      badge: data.badge ?? "/icons/icon-72x72.png",
+      tag: data.tag ?? "rest-timer",
+      renotify: data.renotify ?? true,
+    })
+  );
+});
+
 // Show rest-timer notification when the page sends SHOW_TIMER_NOTIFICATION
 self.addEventListener("message", (event) => {
   if (event.data?.type === "SHOW_TIMER_NOTIFICATION") {

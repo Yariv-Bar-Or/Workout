@@ -25,3 +25,15 @@ create policy "users can update own exercises"
 create policy "users can delete own exercises"
   on exercises for delete
   using (auth.uid() = user_id);
+
+CREATE TABLE IF NOT EXISTS push_subscriptions (
+  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  subscription jsonb NOT NULL,
+  created_at bigint DEFAULT extract(epoch from now()) * 1000
+);
+
+ALTER TABLE push_subscriptions ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users manage own subscriptions" ON push_subscriptions
+  FOR ALL USING (auth.uid() = user_id);
