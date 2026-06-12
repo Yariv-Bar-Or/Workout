@@ -14,7 +14,6 @@ export function useAuth() {
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      console.log('[useAuth] onAuthStateChange event:', _event, 'user:', session?.user ?? null);
       setSession(session);
       setUser(session?.user ?? null);
     });
@@ -23,7 +22,6 @@ export function useAuth() {
   }, []);
 
   const needsName = !!session && !user?.user_metadata?.name;
-  console.log('[useAuth] needsName:', needsName, '| session:', !!session, '| name:', user?.user_metadata?.name);
 
   return { user, session, loading, needsName };
 }

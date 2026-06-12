@@ -17,7 +17,6 @@ export function useRestTimer() {
   // When countdown hits 0
   useEffect(() => {
     if (isRunning && secondsLeft === 0) {
-      console.log("TIMER HIT ZERO");
       setIsRunning(false);
       setTimerComplete(true);
     }

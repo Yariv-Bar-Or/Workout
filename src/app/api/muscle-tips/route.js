@@ -39,8 +39,6 @@ ${exercise}
 **נקודות חשובות למניעת פציעה**
 [Critical safety warnings and injury-prevention cues]`;
 
-  console.log('[muscle-tips] GROQ_API_KEY set:', !!process.env.GROQ_API_KEY, '| length:', process.env.GROQ_API_KEY?.length);
-
   const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
     method: "POST",
     headers: {
@@ -56,8 +54,6 @@ ${exercise}
       max_tokens: 2000,
     }),
   });
-
-  console.log('[muscle-tips] Groq response status:', response.status, response.statusText);
 
   if (!response.ok) {
     const errBody = await response.text();
