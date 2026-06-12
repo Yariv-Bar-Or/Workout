@@ -548,15 +548,6 @@ export default function WorkoutTracker({ user }) {
     sessionStorage.setItem("session_started", "1");
   }, []);
 
-  // Show rest-duration modal once if no preference saved yet
-  useEffect(() => {
-    if (loading) return;
-    const saved = localStorage.getItem("restTimerDuration");
-    if (saved !== null) return;
-    const shown = sessionStorage.getItem("restTimerModalShown");
-    if (!shown) setShowTimerModal(true);
-  }, [loading]);
-
   // Repeating beep while the completion modal is open
   useEffect(() => {
     if (!timerComplete) return;
