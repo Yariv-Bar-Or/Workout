@@ -542,10 +542,10 @@ export default function WorkoutTracker({ user }) {
 
   // Show session timer prompt on fresh app open (not app-switch)
   useEffect(() => {
-    if (!sessionStorage.getItem("session_started")) {
+    if (!sessionStorage.getItem("session_started") && !localStorage.getItem("restTimerDuration")) {
       setShowTimerPrompt(true);
-      sessionStorage.setItem("session_started", "1");
     }
+    sessionStorage.setItem("session_started", "1");
   }, []);
 
   // Show rest-duration modal once if no preference saved yet
