@@ -15,6 +15,7 @@ import VoiceConfirmCard from './VoiceConfirmCard';
 import RestTimerModal from './RestTimerModal';
 import RestTimerBar from './RestTimerBar';
 import ShareButton from './ShareButton';
+import SessionTimerPrompt from './SessionTimerPrompt';
 import { ComposedChart, Line, Customized, XAxis, YAxis, ResponsiveContainer } from "recharts";
 import {
   ChevronLeft, Plus, Dumbbell, TrendingUp, X, Check,
@@ -537,6 +538,15 @@ export default function WorkoutTracker({ user }) {
   const voiceLogger = useVoiceLogger(exercises, updateExerciseWeight);
   const { secondsLeft, totalSeconds, isRunning, timerComplete, startTimer, skipTimer, dismissComplete } = useRestTimer();
   const [showTimerModal, setShowTimerModal] = useState(false);
+  const [showTimerPrompt, setShowTimerPrompt] = useState(false);
+
+  // Show session timer prompt on fresh app open (not app-switch)
+  useEffect(() => {
+    if (!sessionStorage.getItem("session_started")) {
+      setShowTimerPrompt(true);
+      sessionStorage.setItem("session_started", "1");
+    }
+  }, []);
 
   // Show rest-duration modal once if no preference saved yet
   useEffect(() => {
@@ -699,6 +709,12 @@ export default function WorkoutTracker({ user }) {
       )}
       {showTimerModal && (
         <RestTimerModal onClose={() => setShowTimerModal(false)} />
+      )}
+      {showTimerPrompt && (
+        <SessionTimerPrompt
+          onConfirm={() => { setShowTimerPrompt(false); setShowTimerModal(true); }}
+          onDismiss={() => setShowTimerPrompt(false)}
+        />
       )}
     </>
   );
