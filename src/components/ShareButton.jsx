@@ -4,8 +4,6 @@ import { useShareCard } from "../hooks/useShareCard";
 export default function ShareButton({ exercises }) {
   const { generateCard, isGenerating, hasWorkoutToday } = useShareCard(exercises);
 
-  console.log("[ShareButton] hasWorkoutToday:", hasWorkoutToday, "| exercises count:", exercises?.length);
-
   if (!hasWorkoutToday) return null;
 
   return (
