@@ -10,10 +10,16 @@ export function useRestTimer() {
   const [isRunning, setIsRunning] = useState(false);
   const [timerComplete, setTimerComplete] = useState(false);
   const intervalRef = useRef(null);
+  const timeoutRef = useRef(null);
+  const activeRef = useRef(false); // guards against double-fire from setTimeout + setInterval racing
 
   const handleExpiry = useCallback(() => {
+    if (!activeRef.current) return;
+    activeRef.current = false;
     clearInterval(intervalRef.current);
+    clearTimeout(timeoutRef.current);
     intervalRef.current = null;
+    timeoutRef.current = null;
     localStorage.removeItem(LS_END_KEY);
     localStorage.removeItem(LS_TOTAL_KEY);
     setSecondsLeft(0);
@@ -26,8 +32,24 @@ export function useRestTimer() {
 
   const startCountdown = useCallback((endTime, total) => {
     clearInterval(intervalRef.current);
+    clearTimeout(timeoutRef.current);
+    intervalRef.current = null;
+    timeoutRef.current = null;
+    activeRef.current = true;
+
+    const msLeft = endTime - Date.now();
+    if (msLeft <= 0) {
+      handleExpiry();
+      return;
+    }
+
     setTotalSeconds(total);
     setIsRunning(true);
+
+    // Exact-time expiry: fires at the precise millisecond regardless of tab throttling
+    timeoutRef.current = setTimeout(handleExpiry, msLeft);
+
+    // Visual countdown: updates display every second (throttled in background but display-only)
     intervalRef.current = setInterval(() => {
       const remaining = Math.round((endTime - Date.now()) / 1000);
       if (remaining <= 0) {
@@ -50,7 +72,10 @@ export function useRestTimer() {
     } else {
       handleExpiry();
     }
-    return () => clearInterval(intervalRef.current);
+    return () => {
+      clearInterval(intervalRef.current);
+      clearTimeout(timeoutRef.current);
+    };
   }, [startCountdown, handleExpiry]);
 
   // When app returns to foreground: recalculate from localStorage end time
@@ -83,8 +108,11 @@ export function useRestTimer() {
   }, [startCountdown]);
 
   const skipTimer = useCallback(() => {
+    activeRef.current = false;
     clearInterval(intervalRef.current);
+    clearTimeout(timeoutRef.current);
     intervalRef.current = null;
+    timeoutRef.current = null;
     localStorage.removeItem(LS_END_KEY);
     localStorage.removeItem(LS_TOTAL_KEY);
     setIsRunning(false);
