@@ -16,10 +16,11 @@ import RestTimerModal from './RestTimerModal';
 import RestTimerBar from './RestTimerBar';
 import ShareButton from './ShareButton';
 import SessionTimerPrompt from './SessionTimerPrompt';
+import ConfirmModal from './ConfirmModal';
 import { ComposedChart, Line, Customized, XAxis, YAxis, ResponsiveContainer } from "recharts";
 import {
   ChevronLeft, Plus, Dumbbell, TrendingUp, X, Check,
-  ChevronDown, ChevronUp, Zap, BarChart2, Trash2, Pencil
+  ChevronDown, ChevronUp, Zap, BarChart2, Trash2, Pencil, Copy
 } from "lucide-react";
 
 function fmt(ts) {
@@ -246,34 +247,52 @@ function CategoryBadge({ cat }) {
   );
 }
 
-function ExerciseRow({ exercise, onClick }) {
+function ExerciseRow({ exercise, onClick, onEdit, onDelete }) {
   const last = exercise.sessions[exercise.sessions.length - 1];
   return (
-    <button onClick={onClick} style={{
-      display: "flex", alignItems: "center", gap: 12,
-      width: "100%", padding: "14px 16px",
+    <div style={{
+      display: "flex", alignItems: "center",
       background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)",
-      borderRadius: 14, cursor: "pointer", textAlign: "right",
-      WebkitTapHighlightColor: "transparent",
+      borderRadius: 14,
     }}>
-      <Dumbbell size={20} color="#555" style={{ flexShrink: 0 }} />
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ color: "#f0ede8", fontWeight: 600, fontSize: 16 }}>{exercise.name}</div>
-        {last && (
-          <div style={{ color: "#777", fontSize: 13, marginTop: 2 }}>
-            אחרון: <span style={{ color: "#ff6b35", fontWeight: 700 }}>{last.weight} ק״ג</span>
-            {last.reps != null && <span style={{ color: "#888", fontWeight: 600 }}> × {last.reps}</span>}
-            <span style={{ marginRight: 6 }}>· {fmt(last.date)}</span>
-          </div>
-        )}
-        {!last && <div style={{ color: "#555", fontSize: 13, marginTop: 2 }}>אין מידע עדיין</div>}
+      <div onClick={onClick} style={{
+        flex: 1, display: "flex", alignItems: "center", gap: 12,
+        padding: "14px 16px", cursor: "pointer", textAlign: "right",
+        WebkitTapHighlightColor: "transparent", minWidth: 0,
+      }}>
+        <Dumbbell size={20} color="#555" style={{ flexShrink: 0 }} />
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ color: "#f0ede8", fontWeight: 600, fontSize: 16 }}>{exercise.name}</div>
+          {last && (
+            <div style={{ color: "#777", fontSize: 13, marginTop: 2 }}>
+              אחרון: <span style={{ color: "#ff6b35", fontWeight: 700 }}>{last.weight} ק״ג</span>
+              {last.reps != null && <span style={{ color: "#888", fontWeight: 600 }}> × {last.reps}</span>}
+              <span style={{ marginRight: 6 }}>· {fmt(last.date)}</span>
+            </div>
+          )}
+          {!last && <div style={{ color: "#555", fontSize: 13, marginTop: 2 }}>אין מידע עדיין</div>}
+        </div>
+        <ChevronLeft size={16} color="#444" />
       </div>
-      <ChevronLeft size={16} color="#444" />
-    </button>
+      <div style={{ display: "flex", gap: 6, padding: "0 10px" }}>
+        <button
+          onClick={() => onEdit(exercise)}
+          style={{ width: 32, height: 32, borderRadius: 8, border: "1px solid rgba(255,255,255,0.1)", background: "transparent", color: "#888", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", WebkitTapHighlightColor: "transparent" }}
+        >
+          <Pencil size={14} />
+        </button>
+        <button
+          onClick={() => onDelete(exercise)}
+          style={{ width: 32, height: 32, borderRadius: 8, border: "1px solid rgba(255,80,80,0.2)", background: "rgba(255,80,80,0.06)", color: "#e05555", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", WebkitTapHighlightColor: "transparent" }}
+        >
+          <Trash2 size={14} />
+        </button>
+      </div>
+    </div>
   );
 }
 
-function ExerciseDetail({ exercise, onSave, onDeleteSet, onEditSet, onBack }) {
+function ExerciseDetail({ exercise, onSave, onDuplicateSet, onDeleteSet, onEditSet, onBack }) {
   const [weight, setWeight] = useState("");
   const [reps, setReps] = useState("");
   const [date, setDate] = useState(() => new Date().toISOString().split("T")[0]);
@@ -284,6 +303,7 @@ function ExerciseDetail({ exercise, onSave, onDeleteSet, onEditSet, onBack }) {
   const [editWeight, setEditWeight] = useState("");
   const [editReps, setEditReps] = useState("");
   const [editDate, setEditDate] = useState("");
+  const [duplicatingSet, setDuplicatingSet] = useState(null);
   const inputRef = useRef();
   const last = exercise.sessions[exercise.sessions.length - 1];
   const best = exercise.sessions.reduce((m, s) => Math.max(m, s.weight), 0);
@@ -472,6 +492,13 @@ function ExerciseDetail({ exercise, onSave, onDeleteSet, onEditSet, onBack }) {
                       display: "flex", alignItems: "center", justifyContent: "center" }}>
                       <Pencil size={14} />
                     </button>
+                    <button onClick={() => setDuplicatingSet({ originalIndex, session })}
+                      style={{ width: 32, height: 32, borderRadius: 8,
+                      border: "1px solid rgba(255,255,255,0.1)", background: "transparent",
+                      color: "#888", cursor: "pointer",
+                      display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      <Copy size={14} />
+                    </button>
                     <button onClick={() => onDeleteSet(exercise.id, originalIndex)}
                       style={{ width: 32, height: 32, borderRadius: 8,
                       border: "1px solid rgba(255,80,80,0.2)", background: "rgba(255,80,80,0.06)",
@@ -504,6 +531,20 @@ function ExerciseDetail({ exercise, onSave, onDeleteSet, onEditSet, onBack }) {
       </button>
 
       {showChart && <Chart sessions={exercise.sessions} />}
+
+      {duplicatingSet && (
+        <ConfirmModal
+          title="שכפול סט"
+          body={`${duplicatingSet.session.weight} ק״ג${duplicatingSet.session.reps != null ? ` × ${duplicatingSet.session.reps} חזרות` : ""} · ${fmt(duplicatingSet.session.date)}`}
+          confirmLabel="שכפל"
+          confirmColor="#22c55e"
+          onConfirm={() => {
+            onDuplicateSet(exercise.id, duplicatingSet.session.weight, duplicatingSet.session.reps, duplicatingSet.session.date);
+            setDuplicatingSet(null);
+          }}
+          onCancel={() => setDuplicatingSet(null)}
+        />
+      )}
     </div>
   );
 }
@@ -527,7 +568,7 @@ function playBeep() {
 }
 
 export default function WorkoutTracker({ user }) {
-  const { exercises, loading, addExercise, updateExerciseWeight, deleteSet, editSet } = useLocalDB(user);
+  const { exercises, loading, addExercise, updateExerciseWeight, deleteSet, editSet, renameExercise, deleteExercise } = useLocalDB(user);
   const [view, setView] = useState("dashboard");
   const [selectedCat, setSelectedCat] = useState(null);
   const [selectedExercise, setSelectedExercise] = useState(null);
@@ -539,6 +580,9 @@ export default function WorkoutTracker({ user }) {
   const { secondsLeft, totalSeconds, isRunning, timerComplete, startTimer, skipTimer, dismissComplete } = useRestTimer();
   const [showTimerModal, setShowTimerModal] = useState(false);
   const [showTimerPrompt, setShowTimerPrompt] = useState(false);
+  const [editingExercise, setEditingExercise] = useState(null);
+  const [editingExerciseName, setEditingExerciseName] = useState("");
+  const [deletingExercise, setDeletingExercise] = useState(null);
 
   // Show session timer prompt on fresh app open (not app-switch)
   useEffect(() => {
@@ -603,6 +647,37 @@ export default function WorkoutTracker({ user }) {
         )
       });
     }
+  }
+
+  function handleDuplicateSet(exId, w, r, ts) {
+    updateExerciseWeight(exId, w, r, ts);
+    const live = exercises.find(e => e.id === exId);
+    if (live) {
+      setSelectedExercise({
+        ...live,
+        sessions: [...live.sessions, { weight: w, reps: r || null, date: ts }]
+      });
+    }
+  }
+
+  function handleRenameExercise() {
+    const trimmed = editingExerciseName.trim();
+    if (!trimmed || !editingExercise) return;
+    renameExercise(editingExercise.id, trimmed);
+    if (selectedExercise?.id === editingExercise.id) {
+      setSelectedExercise(prev => ({ ...prev, name: trimmed }));
+    }
+    setEditingExercise(null);
+  }
+
+  function handleDeleteExercise() {
+    if (!deletingExercise) return;
+    deleteExercise(deletingExercise.id);
+    if (selectedExercise?.id === deletingExercise.id) {
+      setView("category");
+      setSelectedExercise(null);
+    }
+    setDeletingExercise(null);
   }
 
   function handleAddExercise() {
@@ -724,6 +799,7 @@ export default function WorkoutTracker({ user }) {
           <ExerciseDetail
             exercise={live}
             onSave={handleSaveWeight}
+            onDuplicateSet={handleDuplicateSet}
             onDeleteSet={handleDeleteSet}
             onEditSet={handleEditSet}
             onBack={() => { setView("category"); setSelectedExercise(null); }}
@@ -754,7 +830,13 @@ export default function WorkoutTracker({ user }) {
 
         <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 16 }}>
           {catExercises.map(ex => (
-            <ExerciseRow key={ex.id} exercise={ex} onClick={() => { setSelectedExercise(ex); setView("exercise"); }} />
+            <ExerciseRow
+              key={ex.id}
+              exercise={ex}
+              onClick={() => { setSelectedExercise(ex); setView("exercise"); }}
+              onEdit={item => { setEditingExercise(item); setEditingExerciseName(item.name); }}
+              onDelete={item => setDeletingExercise(item)}
+            />
           ))}
         </div>
 
@@ -803,6 +885,39 @@ export default function WorkoutTracker({ user }) {
         )}
       </div>
       {voiceOverlay}
+      {editingExercise && (
+        <ConfirmModal
+          title="עריכת שם תרגיל"
+          body={
+            <input
+              autoFocus
+              value={editingExerciseName}
+              onChange={e => setEditingExerciseName(e.target.value)}
+              onKeyDown={e => e.key === "Enter" && handleRenameExercise()}
+              style={{
+                width: "100%", height: 44, background: "rgba(0,0,0,0.3)",
+                border: "1px solid rgba(255,107,53,0.3)", borderRadius: 10,
+                color: "#f0ede8", fontSize: 16, padding: "0 12px",
+                outline: "none", boxSizing: "border-box", textAlign: "right",
+              }}
+            />
+          }
+          confirmLabel="שמור"
+          confirmColor="#22c55e"
+          onConfirm={handleRenameExercise}
+          onCancel={() => setEditingExercise(null)}
+        />
+      )}
+      {deletingExercise && (
+        <ConfirmModal
+          title="מחיקת תרגיל"
+          body="האם אתה בטוח? פעולה זו תמחק את התרגיל ואת כל ההיסטוריה שלו."
+          confirmLabel="מחק"
+          confirmColor="#ef4444"
+          onConfirm={handleDeleteExercise}
+          onCancel={() => setDeletingExercise(null)}
+        />
+      )}
       </>
     );
   }

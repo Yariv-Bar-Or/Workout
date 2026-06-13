@@ -104,5 +104,28 @@ export function useSupabaseDB(user) {
     }));
   }, [user]);
 
-  return { exercises, loading, addExercise, updateExerciseWeight, deleteSet, editSet };
+  const renameExercise = useCallback(async (exerciseId, newName) => {
+    if (!user) return;
+    const now = Date.now();
+    setExercises(prev => prev.map(e =>
+      e.id === exerciseId ? { ...e, name: newName, updated_at: now } : e
+    ));
+    supabase.from('exercises')
+      .update({ name: newName, updated_at: now })
+      .eq('id', exerciseId)
+      .eq('user_id', user.id)
+      .then(({ error }) => { if (error) console.error('Supabase error:', error); });
+  }, [user]);
+
+  const deleteExercise = useCallback(async (exerciseId) => {
+    if (!user) return;
+    setExercises(prev => prev.filter(e => e.id !== exerciseId));
+    supabase.from('exercises')
+      .delete()
+      .eq('id', exerciseId)
+      .eq('user_id', user.id)
+      .then(({ error }) => { if (error) console.error('Supabase error:', error); });
+  }, [user]);
+
+  return { exercises, loading, addExercise, updateExerciseWeight, deleteSet, editSet, renameExercise, deleteExercise };
 }
