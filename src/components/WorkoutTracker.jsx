@@ -321,7 +321,7 @@ function ExerciseDetail({ exercise, onSave, onDuplicateSet, onDeleteSet, onEditS
   }
 
   const reversedSessions = [...exercise.sessions]
-    .map((s, i) => ({ ...s, originalIndex: i }))
+    .map((s, i) => ({ ...s, _listIndex: i }))
     .reverse();
 
   return (
@@ -433,12 +433,12 @@ function ExerciseDetail({ exercise, onSave, onDuplicateSet, onDeleteSet, onEditS
           </button>
           {showSets && (
           <div style={{ maxHeight: 320, overflowY: "auto" }}>
-          {reversedSessions.map(({ originalIndex, ...session }) => (
-            <div key={originalIndex} style={{
+          {reversedSessions.map(({ _listIndex, ...session }) => (
+            <div key={session.id || _listIndex} style={{
               background: "rgba(255,255,255,0.03)", borderRadius: 10,
               padding: "10px 14px", marginBottom: 8, direction: "rtl",
             }}>
-              {editingIndex === originalIndex ? (
+              {editingIndex === _listIndex ? (
                 <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
                   <input type="number" value={editWeight} onChange={e => setEditWeight(e.target.value)}
                     placeholder="משקל" style={{ width: 70, height: 36, background: "rgba(0,0,0,0.3)",
@@ -457,7 +457,7 @@ function ExerciseDetail({ exercise, onSave, onDuplicateSet, onDeleteSet, onEditS
                     const w = parseFloat(editWeight);
                     const r = editReps !== "" ? parseInt(editReps, 10) : null;
                     const ts = new Date(editDate).setHours(12, 0, 0, 0);
-                    if (w > 0) { onEditSet(exercise.id, originalIndex, w, r, ts); setEditingIndex(null); }
+                    if (w > 0) { onEditSet(exercise.id, session.id, w, r, ts); setEditingIndex(null); }
                   }} style={{ width: 36, height: 36, borderRadius: 8, border: "none",
                     background: "#22c55e", color: "#fff", cursor: "pointer",
                     display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -481,7 +481,7 @@ function ExerciseDetail({ exercise, onSave, onDuplicateSet, onDeleteSet, onEditS
                   </div>
                   <div style={{ display: "flex", gap: 6 }}>
                     <button onClick={() => {
-                      setEditingIndex(originalIndex);
+                      setEditingIndex(_listIndex);
                       setEditWeight(session.weight.toString());
                       setEditReps(session.reps != null ? session.reps.toString() : "");
                       const d = new Date(session.date);
@@ -492,14 +492,14 @@ function ExerciseDetail({ exercise, onSave, onDuplicateSet, onDeleteSet, onEditS
                       display: "flex", alignItems: "center", justifyContent: "center" }}>
                       <Pencil size={14} />
                     </button>
-                    <button onClick={() => setDuplicatingSet({ originalIndex, session })}
+                    <button onClick={() => setDuplicatingSet({ _listIndex, session })}
                       style={{ width: 32, height: 32, borderRadius: 8,
                       border: "1px solid rgba(255,255,255,0.1)", background: "transparent",
                       color: "#888", cursor: "pointer",
                       display: "flex", alignItems: "center", justifyContent: "center" }}>
                       <Copy size={14} />
                     </button>
-                    <button onClick={() => onDeleteSet(exercise.id, originalIndex)}
+                    <button onClick={() => onDeleteSet(exercise.id, session.id)}
                       style={{ width: 32, height: 32, borderRadius: 8,
                       border: "1px solid rgba(255,80,80,0.2)", background: "rgba(255,80,80,0.06)",
                       color: "#e05555", cursor: "pointer",
@@ -625,25 +625,25 @@ export default function WorkoutTracker({ user }) {
     if (dur > 0) startTimer(dur);
   }
 
-  function handleDeleteSet(exId, sessionIndex) {
-    deleteSet(exId, sessionIndex);
+  function handleDeleteSet(exId, sessionId) {
+    deleteSet(exId, sessionId);
     const live = exercises.find(e => e.id === exId);
     if (live) {
       setSelectedExercise({
         ...live,
-        sessions: live.sessions.filter((_, i) => i !== sessionIndex)
+        sessions: live.sessions.filter(s => s.id !== sessionId)
       });
     }
   }
 
-  function handleEditSet(exId, sessionIndex, w, r, ts) {
-    editSet(exId, sessionIndex, w, r, ts);
+  function handleEditSet(exId, sessionId, w, r, ts) {
+    editSet(exId, sessionId, w, r, ts);
     const live = exercises.find(e => e.id === exId);
     if (live) {
       setSelectedExercise({
         ...live,
-        sessions: live.sessions.map((s, i) =>
-          i === sessionIndex ? { ...s, weight: w, reps: r || null, date: ts } : s
+        sessions: live.sessions.map(s =>
+          s.id === sessionId ? { ...s, weight: w, reps: r || null, date: ts } : s
         )
       });
     }

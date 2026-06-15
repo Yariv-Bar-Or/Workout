@@ -29,35 +29,31 @@ export function useOfflineSync(user) {
 
     setIsSyncing(true);
     try {
-      // Deduplicate: for each exerciseId keep only the latest op (highest createdAt)
-      const latest = new Map();
-      for (const op of ops) {
-        const existing = latest.get(op.payload.exerciseId);
-        if (!existing || op.createdAt > existing.createdAt) {
-          latest.set(op.payload.exerciseId, op);
+      // Replay each op in creation order — atomic RPCs mean ordering is safe
+      const sorted = [...ops].sort((a, b) => a.createdAt - b.createdAt);
+
+      for (const op of sorted) {
+        let error;
+
+        if (op.type === "append_session") {
+          ({ error } = await supabase.rpc("append_session", {
+            p_exercise_id: op.payload.exerciseId,
+            p_session:     op.payload.session,
+            p_updated_at:  op.payload.updatedAt,
+          }));
+        } else if (op.type === "upsert_session") {
+          // Legacy op format from before the RPC migration: fall back to full-array replace
+          ({ error } = await supabase
+            .from("exercises")
+            .update({ sessions: op.payload.sessions, updated_at: op.payload.updatedAt })
+            .eq("id", op.payload.exerciseId)
+            .eq("user_id", user.id));
         }
-      }
-
-      // Apply latest op per exercise, then dequeue all ops for that exercise
-      const byExercise = new Map();
-      for (const op of ops) {
-        const arr = byExercise.get(op.payload.exerciseId) || [];
-        arr.push(op);
-        byExercise.set(op.payload.exerciseId, arr);
-      }
-
-      for (const [exerciseId, exerciseOps] of byExercise) {
-        const latestOp = latest.get(exerciseId);
-        const { error } = await supabase
-          .from("exercises")
-          .update({ sessions: latestOp.payload.sessions, updated_at: latestOp.payload.updatedAt })
-          .eq("id", exerciseId)
-          .eq("user_id", user.id);
 
         if (!error) {
-          for (const op of exerciseOps) await dequeue(op.id);
+          await dequeue(op.id);
         } else {
-          console.error("[useOfflineSync] sync failed for", exerciseId, error);
+          console.error("[useOfflineSync] sync failed for op", op.id, error);
         }
       }
     } catch (err) {
