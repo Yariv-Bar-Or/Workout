@@ -51,10 +51,20 @@ CREATE OR REPLACE FUNCTION append_session(
 )
 RETURNS void LANGUAGE plpgsql AS $$
 BEGIN
+  -- Idempotent: if a session with this id already exists, no-op.
+  -- The NOT EXISTS check and the UPDATE are one atomic statement, so a
+  -- retry after a dropped-connection failure cannot create a duplicate.
+  -- When p_session->>'id' IS NULL (legacy entries), the = comparison
+  -- yields NULL, NOT EXISTS is satisfied, and the append always proceeds.
   UPDATE exercises
   SET sessions   = sessions || jsonb_build_array(p_session),
       updated_at = p_updated_at
-  WHERE id = p_exercise_id;
+  WHERE id = p_exercise_id
+    AND NOT EXISTS (
+      SELECT 1
+      FROM   jsonb_array_elements(sessions) AS elem
+      WHERE  elem->>'id' = p_session->>'id'
+    );
 END;
 $$;
 
