@@ -49,13 +49,14 @@ CREATE OR REPLACE FUNCTION append_session(
   p_session     jsonb,
   p_updated_at  bigint
 )
-RETURNS void LANGUAGE plpgsql AS $$
+RETURNS int LANGUAGE plpgsql AS $$
+DECLARE affected int;
 BEGIN
-  -- Idempotent: if a session with this id already exists, no-op.
-  -- The NOT EXISTS check and the UPDATE are one atomic statement, so a
-  -- retry after a dropped-connection failure cannot create a duplicate.
-  -- When p_session->>'id' IS NULL (legacy entries), the = comparison
-  -- yields NULL, NOT EXISTS is satisfied, and the append always proceeds.
+  -- Idempotent: if a session with this id already exists, no-op (returns 0).
+  -- Online path: fresh ID means 0 = exercise not found = real failure.
+  -- Offline replay path: 0 = already applied = safe to dequeue (caller checks error only).
+  -- When p_session->>'id' IS NULL (legacy entries), NOT EXISTS is satisfied
+  -- and the append always proceeds.
   UPDATE exercises
   SET sessions   = sessions || jsonb_build_array(p_session),
       updated_at = p_updated_at
@@ -65,6 +66,8 @@ BEGIN
       FROM   jsonb_array_elements(sessions) AS elem
       WHERE  elem->>'id' = p_session->>'id'
     );
+  GET DIAGNOSTICS affected = ROW_COUNT;
+  RETURN affected;
 END;
 $$;
 
@@ -73,8 +76,11 @@ CREATE OR REPLACE FUNCTION delete_session(
   p_session_id  text,
   p_updated_at  bigint
 )
-RETURNS void LANGUAGE plpgsql AS $$
+RETURNS int LANGUAGE plpgsql AS $$
+DECLARE affected int;
 BEGIN
+  -- EXISTS guard: without it, a missing session_id would leave the array
+  -- unchanged but still return ROW_COUNT=1, hiding the failure.
   UPDATE exercises
   SET sessions = (
     SELECT coalesce(jsonb_agg(elem ORDER BY ordinality), '[]'::jsonb)
@@ -82,7 +88,14 @@ BEGIN
     WHERE  elem->>'id' != p_session_id
   ),
   updated_at = p_updated_at
-  WHERE id = p_exercise_id;
+  WHERE id = p_exercise_id
+    AND EXISTS (
+      SELECT 1
+      FROM   jsonb_array_elements(sessions) AS elem
+      WHERE  elem->>'id' = p_session_id
+    );
+  GET DIAGNOSTICS affected = ROW_COUNT;
+  RETURN affected;
 END;
 $$;
 
@@ -94,8 +107,11 @@ CREATE OR REPLACE FUNCTION update_session(
   p_date        bigint,
   p_updated_at  bigint
 )
-RETURNS void LANGUAGE plpgsql AS $$
+RETURNS int LANGUAGE plpgsql AS $$
+DECLARE affected int;
 BEGIN
+  -- EXISTS guard: without it, a missing session_id would rewrite the array
+  -- unchanged and return ROW_COUNT=1, hiding the failure.
   UPDATE exercises
   SET sessions = (
     SELECT coalesce(jsonb_agg(
@@ -110,7 +126,14 @@ BEGIN
     FROM jsonb_array_elements(sessions) WITH ORDINALITY AS t(elem, ordinality)
   ),
   updated_at = p_updated_at
-  WHERE id = p_exercise_id;
+  WHERE id = p_exercise_id
+    AND EXISTS (
+      SELECT 1
+      FROM   jsonb_array_elements(sessions) AS elem
+      WHERE  elem->>'id' = p_session_id
+    );
+  GET DIAGNOSTICS affected = ROW_COUNT;
+  RETURN affected;
 END;
 $$;
 
