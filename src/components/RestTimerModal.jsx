@@ -26,6 +26,8 @@ export default function RestTimerModal({ onClose }) {
   function handleSelect(seconds) {
     localStorage.setItem("restTimerDuration", String(seconds));
     sessionStorage.setItem("restTimerModalShown", "1");
+    // Explicit duration choice overrides any "no timer today" dismiss
+    sessionStorage.removeItem("timerDisabledThisSession");
     subscribeToPush();
     onClose();
   }

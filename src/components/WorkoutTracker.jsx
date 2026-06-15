@@ -621,8 +621,10 @@ export default function WorkoutTracker({ user }) {
         sessions: [...live.sessions, { weight: w, reps: r || null, date: ts }]
       });
     }
-    const dur = parseInt(localStorage.getItem("restTimerDuration") || "0", 10);
-    if (dur > 0) startTimer(dur);
+    if (!sessionStorage.getItem("timerDisabledThisSession")) {
+      const dur = parseInt(localStorage.getItem("restTimerDuration") || "0", 10);
+      if (dur > 0) startTimer(dur);
+    }
   }
 
   function handleDeleteSet(exId, sessionId) {
@@ -781,7 +783,10 @@ export default function WorkoutTracker({ user }) {
       {showTimerPrompt && (
         <SessionTimerPrompt
           onConfirm={() => { setShowTimerPrompt(false); setShowTimerModal(true); }}
-          onDismiss={() => setShowTimerPrompt(false)}
+          onDismiss={() => {
+            sessionStorage.setItem("timerDisabledThisSession", "true");
+            setShowTimerPrompt(false);
+          }}
         />
       )}
     </>
