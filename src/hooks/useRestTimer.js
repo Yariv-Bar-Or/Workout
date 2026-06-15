@@ -70,6 +70,10 @@ export function useRestTimer() {
       setSecondsLeft(remaining);
       startCountdown(endTime, total);
     } else {
+      // Timer expired while the app was closed. The activeRef guard in
+      // handleExpiry prevents double-fire from a running setTimeout+setInterval
+      // pair — those aren't active here, so arm the ref before calling.
+      activeRef.current = true;
       handleExpiry();
     }
     return () => {
@@ -90,6 +94,8 @@ export function useRestTimer() {
         setSecondsLeft(remaining);
         startCountdown(endTime, total);
       } else {
+        // Same rationale as the mount effect.
+        activeRef.current = true;
         handleExpiry();
       }
     }

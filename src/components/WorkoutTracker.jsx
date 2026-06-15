@@ -588,8 +588,6 @@ export default function WorkoutTracker({ user }) {
   useEffect(() => {
     if (!sessionStorage.getItem("session_started")) {
       setShowTimerPrompt(true);
-      localStorage.removeItem("timerEndTime");
-      localStorage.removeItem("timerTotalSeconds");
     }
     sessionStorage.setItem("session_started", "1");
   }, []);
