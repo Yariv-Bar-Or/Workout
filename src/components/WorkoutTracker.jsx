@@ -577,7 +577,7 @@ export default function WorkoutTracker({ user }) {
   const [aiModalCat, setAiModalCat] = useState(null);
   useOfflineSync(user);
   const voiceLogger = useVoiceLogger(exercises, updateExerciseWeight);
-  const { secondsLeft, totalSeconds, isRunning, timerComplete, startTimer, skipTimer, dismissComplete } = useRestTimer();
+  const { secondsLeft, totalSeconds, isRunning, timerComplete, startTimer, skipTimer, dismissComplete } = useRestTimer(user?.id);
   const [showTimerModal, setShowTimerModal] = useState(false);
   const [showTimerPrompt, setShowTimerPrompt] = useState(false);
   const [editingExercise, setEditingExercise] = useState(null);

@@ -177,3 +177,19 @@ $$;
 --
 -- ALTER TABLE push_subscriptions
 --   ADD CONSTRAINT push_subscriptions_user_id_key UNIQUE (user_id);
+
+-- ─── Server-side timer backstop ────────────────────────────────────────────
+-- One row per user while a rest timer is active. Written by the client on
+-- startTimer(), deleted by the client on normal completion or skip, and
+-- deleted by the Vercel cron job (/api/push/cron) after it sends the push
+-- backstop. user_id is the PK — only one active timer per user.
+CREATE TABLE IF NOT EXISTS active_timers (
+  user_id    uuid PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  ends_at    bigint NOT NULL,
+  created_at bigint NOT NULL DEFAULT extract(epoch from now()) * 1000
+);
+
+ALTER TABLE active_timers ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users manage own active timer" ON active_timers
+  FOR ALL USING (auth.uid() = user_id);
