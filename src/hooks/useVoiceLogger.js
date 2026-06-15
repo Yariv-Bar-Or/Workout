@@ -36,6 +36,14 @@ export function useVoiceLogger(exercises, updateExerciseWeight) {
           }),
         });
         const data = await res.json();
+        if (data.error === "invalid_value") {
+          setParseError(
+            data.field === "weight"
+              ? "לא הצלחתי להבין את המשקל, נסה שנית."
+              : "לא הצלחתי להבין את מספר החזרות, נסה שנית."
+          );
+          return;
+        }
         if (data.error || data.weight == null) throw new Error("parse failed");
         const matched = exList.find(
           (e) => e.name.toLowerCase() === data.exerciseName?.toLowerCase()
