@@ -1,10 +1,9 @@
 "use client";
 
-export default function SessionTimerPrompt({ onConfirm, onDismiss, savedDuration = 0 }) {
-  const hasExisting = savedDuration > 0;
-
+export default function SessionTimerPrompt({ onConfirm, onDismiss }) {
   return (
     <>
+      {/* Backdrop */}
       <div
         onClick={onDismiss}
         style={{
@@ -16,6 +15,7 @@ export default function SessionTimerPrompt({ onConfirm, onDismiss, savedDuration
         }}
       />
 
+      {/* Bottom sheet */}
       <div style={{
         position: "fixed",
         bottom: 72,
@@ -29,12 +29,10 @@ export default function SessionTimerPrompt({ onConfirm, onDismiss, savedDuration
         direction: "rtl",
       }}>
         <div style={{ color: "#f0ede8", fontSize: 18, fontWeight: 800, marginBottom: 8 }}>
-          {hasExisting ? "⏱ טיימר מנוחה פעיל" : "אימון חדש 💪"}
+          אימון חדש 💪
         </div>
         <div style={{ color: "#888", fontSize: 14, marginBottom: 20 }}>
-          {hasExisting
-            ? `טיימר של ${savedDuration} שנ׳ מוגדר — לכבות להיום?`
-            : "רוצה להפעיל טיימר מנוחה לאימון היום?"}
+          רוצה להפעיל טיימר מנוחה לאימון היום?
         </div>
 
         <div style={{ display: "flex", gap: 10 }}>
@@ -48,7 +46,7 @@ export default function SessionTimerPrompt({ onConfirm, onDismiss, savedDuration
               WebkitTapHighlightColor: "transparent",
             }}
           >
-            {hasExisting ? "השאר פעיל" : "כן"}
+            כן
           </button>
           <button
             onClick={onDismiss}
@@ -61,7 +59,7 @@ export default function SessionTimerPrompt({ onConfirm, onDismiss, savedDuration
               WebkitTapHighlightColor: "transparent",
             }}
           >
-            {hasExisting ? "כבה להיום" : "לא תודה"}
+            לא תודה
           </button>
         </div>
       </div>
