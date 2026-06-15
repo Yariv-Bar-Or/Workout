@@ -165,7 +165,7 @@ export function useRestTimer(userId) {
     localStorage.setItem(LS_END_KEY, endTime.toString());
     localStorage.setItem(LS_TOTAL_KEY, duration.toString());
     setTimerComplete(false);
-    setSecondsLeft(duration);
+    setSecondsLeft(Math.round((endTime - Date.now()) / 1000));
     suppressedRef.current.clear(); // discard any suppression from the previous timer
     startCountdown(endTime, duration); // sets endTimeRef.current
     if (userIdRef.current) {
