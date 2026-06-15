@@ -1,4 +1,26 @@
+import { createServerClient } from "@supabase/ssr";
+import { cookies } from "next/headers";
+
 export async function POST(request) {
+  const cookieStore = await cookies();
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+    {
+      cookies: {
+        getAll: () => cookieStore.getAll(),
+        setAll: (cookiesToSet) => {
+          cookiesToSet.forEach(({ name, value, options }) =>
+            cookieStore.set(name, value, options)
+          );
+        },
+      },
+    }
+  );
+
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
+  if (authError || !user) return Response.json({ error: "unauthorized" }, { status: 401 });
+
   const { transcript, exercises } = await request.json();
 
   const exerciseList = exercises?.length
@@ -44,13 +66,33 @@ Hebrew number words: אחד/אחת=1, שתיים/שניים=2, שלוש=3, אר�
     return Response.json({ error: "שגיאה בשרת" }, { status: 500 });
   }
 
-  const data = await response.json();
-  const content = data?.choices?.[0]?.message?.content ?? "{}";
+  const groqData = await response.json();
+  const content = groqData?.choices?.[0]?.message?.content ?? "{}";
 
+  let parsed;
   try {
     const cleaned = content.replace(/```json?\n?/g, "").replace(/```/g, "").trim();
-    return Response.json(JSON.parse(cleaned));
+    parsed = JSON.parse(cleaned);
   } catch {
     return Response.json({ error: "parse error" }, { status: 500 });
   }
+
+  // Validate and coerce weight: must be a number in (0, 500] kg, or null
+  let { weight, reps } = parsed;
+  if (weight !== null && weight !== undefined) {
+    if (typeof weight === "string") weight = Number(weight);
+    if (typeof weight !== "number" || isNaN(weight) || weight <= 0 || weight > 500) {
+      return Response.json({ error: "invalid_value", field: "weight" }, { status: 422 });
+    }
+  }
+
+  // Validate and coerce reps: must be an integer in [1, 100], or null
+  if (reps !== null && reps !== undefined) {
+    if (typeof reps === "string") reps = Number(reps);
+    if (!Number.isInteger(reps) || reps < 1 || reps > 100) {
+      return Response.json({ error: "invalid_value", field: "reps" }, { status: 422 });
+    }
+  }
+
+  return Response.json({ ...parsed, weight, reps });
 }
