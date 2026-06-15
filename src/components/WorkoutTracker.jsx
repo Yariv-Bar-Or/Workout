@@ -580,6 +580,7 @@ export default function WorkoutTracker({ user }) {
   const { secondsLeft, totalSeconds, isRunning, timerComplete, startTimer, skipTimer, dismissComplete } = useRestTimer();
   const [showTimerModal, setShowTimerModal] = useState(false);
   const [showTimerPrompt, setShowTimerPrompt] = useState(false);
+  const [timerPromptDuration, setTimerPromptDuration] = useState(0);
   const [editingExercise, setEditingExercise] = useState(null);
   const [editingExerciseName, setEditingExerciseName] = useState("");
   const [deletingExercise, setDeletingExercise] = useState(null);
@@ -587,6 +588,8 @@ export default function WorkoutTracker({ user }) {
   // Show session timer prompt on fresh app open (not app-switch)
   useEffect(() => {
     if (!sessionStorage.getItem("session_started")) {
+      const dur = parseInt(localStorage.getItem("restTimerDuration") || "0", 10);
+      setTimerPromptDuration(dur);
       setShowTimerPrompt(true);
       localStorage.removeItem("timerEndTime");
       localStorage.removeItem("timerTotalSeconds");
@@ -621,8 +624,10 @@ export default function WorkoutTracker({ user }) {
         sessions: [...live.sessions, { weight: w, reps: r || null, date: ts }]
       });
     }
-    const dur = parseInt(localStorage.getItem("restTimerDuration") || "0", 10);
-    if (dur > 0) startTimer(dur);
+    if (!sessionStorage.getItem("timerDisabledThisSession")) {
+      const dur = parseInt(localStorage.getItem("restTimerDuration") || "0", 10);
+      if (dur > 0) startTimer(dur);
+    }
   }
 
   function handleDeleteSet(exId, sessionIndex) {
@@ -780,8 +785,17 @@ export default function WorkoutTracker({ user }) {
       )}
       {showTimerPrompt && (
         <SessionTimerPrompt
-          onConfirm={() => { setShowTimerPrompt(false); setShowTimerModal(true); }}
-          onDismiss={() => setShowTimerPrompt(false)}
+          savedDuration={timerPromptDuration}
+          onConfirm={() => {
+            setShowTimerPrompt(false);
+            // New user (no saved duration): open the picker to choose one.
+            // Returning user: timer is already configured, just dismiss.
+            if (timerPromptDuration === 0) setShowTimerModal(true);
+          }}
+          onDismiss={() => {
+            sessionStorage.setItem("timerDisabledThisSession", "true");
+            setShowTimerPrompt(false);
+          }}
         />
       )}
     </>
