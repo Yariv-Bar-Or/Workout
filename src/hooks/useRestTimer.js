@@ -1,10 +1,11 @@
 "use client";
 import { useState, useEffect, useCallback, useRef } from "react";
+import { supabase } from "@/lib/supabase";
 
 const LS_END_KEY = "timerEndTime";
 const LS_TOTAL_KEY = "timerTotalSeconds";
 
-export function useRestTimer() {
+export function useRestTimer(userId) {
   const [secondsLeft, setSecondsLeft] = useState(0);
   const [totalSeconds, setTotalSeconds] = useState(0);
   const [isRunning, setIsRunning] = useState(false);
@@ -12,6 +13,20 @@ export function useRestTimer() {
   const intervalRef = useRef(null);
   const timeoutRef = useRef(null);
   const activeRef = useRef(false); // guards against double-fire from setTimeout + setInterval racing
+  const userIdRef = useRef(userId);
+
+  // Keep userIdRef current on every render without destabilising callback dep arrays
+  useEffect(() => { userIdRef.current = userId; }, [userId]);
+
+  // Stable helper: deletes this user's active_timers row. Fire-and-forget.
+  const deleteActiveTimer = useCallback(() => {
+    if (!userIdRef.current) return;
+    supabase
+      .from("active_timers")
+      .delete()
+      .eq("user_id", userIdRef.current)
+      .catch(console.error);
+  }, []);
 
   const handleExpiry = useCallback(() => {
     if (!activeRef.current) return;
@@ -25,10 +40,11 @@ export function useRestTimer() {
     setSecondsLeft(0);
     setIsRunning(false);
     setTimerComplete(true);
+    deleteActiveTimer();
     if (typeof Notification !== "undefined" && Notification.permission === "granted") {
       fetch("/api/push/send", { method: "POST" }).catch(() => {});
     }
-  }, []);
+  }, [deleteActiveTimer]);
 
   const startCountdown = useCallback((endTime, total) => {
     clearInterval(intervalRef.current);
@@ -111,6 +127,12 @@ export function useRestTimer() {
     setTimerComplete(false);
     setSecondsLeft(duration);
     startCountdown(endTime, duration);
+    if (userIdRef.current) {
+      supabase
+        .from("active_timers")
+        .upsert({ user_id: userIdRef.current, ends_at: endTime }, { onConflict: "user_id" })
+        .catch(console.error);
+    }
   }, [startCountdown]);
 
   const skipTimer = useCallback(() => {
@@ -125,7 +147,8 @@ export function useRestTimer() {
     setSecondsLeft(0);
     setTotalSeconds(0);
     setTimerComplete(false);
-  }, []);
+    deleteActiveTimer();
+  }, [deleteActiveTimer]);
 
   const dismissComplete = useCallback(() => {
     setTimerComplete(false);
