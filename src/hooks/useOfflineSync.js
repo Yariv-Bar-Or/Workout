@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { getAll, dequeue } from "@/lib/offlineQueue";
 import { supabase } from "@/lib/supabase";
 
@@ -13,6 +13,7 @@ function genId() {
 export function useOfflineSync(user) {
   const [pendingCount, setPendingCount] = useState(0);
   const [isSyncing, setIsSyncing] = useState(false);
+  const syncingRef = useRef(false);
 
   // Load initial count
   useEffect(() => {
@@ -29,10 +30,11 @@ export function useOfflineSync(user) {
   }, []);
 
   const syncQueue = useCallback(async () => {
-    if (!user) return;
+    if (!user || syncingRef.current) return;
     const ops = await getAll();
     if (ops.length === 0) return;
 
+    syncingRef.current = true;
     setIsSyncing(true);
     try {
       // Replay each op in creation order — atomic RPCs mean ordering is safe
@@ -89,25 +91,31 @@ export function useOfflineSync(user) {
     } catch (err) {
       console.error("[useOfflineSync] syncQueue error:", err);
     } finally {
+      syncingRef.current = false;
       setIsSyncing(false);
     }
   }, [user]);
 
-  // Sync on online event
+  // Sync on mount / when user becomes available (covers "app opened while already online")
+  useEffect(() => {
+    if (!user) return;
+    syncQueue();
+  }, [syncQueue]);
+
+  // Sync on online event (covers "connectivity restored while app is open")
   useEffect(() => {
     function onOnline() { syncQueue(); }
     window.addEventListener("online", onOnline);
     return () => window.removeEventListener("online", onOnline);
   }, [syncQueue]);
 
-  // Sync on service worker message
+  // Sync when app comes to foreground (covers backgrounded iOS: connectivity returned while suspended)
   useEffect(() => {
-    if (!navigator.serviceWorker) return;
-    function onMessage(e) {
-      if (e.data?.type === "SYNC_QUEUE") syncQueue();
+    function onVisibility() {
+      if (document.visibilityState === "visible") syncQueue();
     }
-    navigator.serviceWorker.addEventListener("message", onMessage);
-    return () => navigator.serviceWorker.removeEventListener("message", onMessage);
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => document.removeEventListener("visibilitychange", onVisibility);
   }, [syncQueue]);
 
   return { pendingCount, isSyncing, syncQueue };
