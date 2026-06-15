@@ -50,18 +50,8 @@ export async function GET(request) {
 
     if (!sub) continue; // user never enabled push — nothing to send
 
-    try {
-      await sendPushNotification(sub.subscription);
-      sent++;
-    } catch (err) {
-      errors++;
-      // 410 Gone / 404 = subscription revoked by the browser or OS.
-      // Remove it so we don't keep trying. (Partial fix for bug 6B.)
-      if (err.statusCode === 410 || err.statusCode === 404) {
-        await supabase.from("push_subscriptions").delete().eq("user_id", user_id);
-      }
-      console.error(`[push/cron] push failed for user ${user_id}:`, err.statusCode ?? err.message);
-    }
+    const { success } = await sendPushNotification(sub.subscription, user_id, supabase);
+    if (success) sent++; else errors++;
   }
 
   return Response.json({ sent, errors });

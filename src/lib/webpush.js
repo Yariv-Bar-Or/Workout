@@ -15,6 +15,18 @@ const PUSH_PAYLOAD = JSON.stringify({
   renotify: true,
 });
 
-export async function sendPushNotification(subscription) {
-  await webpush.sendNotification(subscription, PUSH_PAYLOAD);
+export async function sendPushNotification(subscription, userId, supabase) {
+  try {
+    await webpush.sendNotification(subscription, PUSH_PAYLOAD);
+    return { success: true, cleaned: false };
+  } catch (err) {
+    if (err.statusCode === 410 || err.statusCode === 404) {
+      if (userId && supabase) {
+        await supabase.from("push_subscriptions").delete().eq("user_id", userId).catch(console.error);
+      }
+      return { success: false, cleaned: true };
+    }
+    console.error("[webpush] sendNotification failed:", err.statusCode ?? err.message);
+    return { success: false, cleaned: false };
+  }
 }

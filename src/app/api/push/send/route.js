@@ -30,6 +30,6 @@ export async function POST(request) {
 
   if (error || !data) return Response.json({ skipped: true });
 
-  await sendPushNotification(data.subscription);
-  return Response.json({ success: true });
+  const result = await sendPushNotification(data.subscription, user.id, supabase);
+  return Response.json(result);
 }
