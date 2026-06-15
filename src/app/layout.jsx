@@ -1,4 +1,4 @@
-import { InstallPrompt, OfflineBanner } from "@/components/InstallPrompt";
+import { InstallPrompt, OfflineBanner, IOSInstallBanner } from "@/components/InstallPrompt";
 import SyncIndicator from "@/components/SyncIndicator";
 
 export const viewport = {
@@ -38,6 +38,7 @@ export default function RootLayout({ children }) {
         <SyncIndicator />
         {children}
         <InstallPrompt />
+        <IOSInstallBanner />
       </body>
     </html>
   )
