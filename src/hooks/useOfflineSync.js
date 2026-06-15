@@ -4,6 +4,12 @@ import { useState, useEffect, useCallback } from "react";
 import { getAll, dequeue } from "@/lib/offlineQueue";
 import { supabase } from "@/lib/supabase";
 
+function genId() {
+  return (typeof crypto !== "undefined" && crypto.randomUUID)
+    ? crypto.randomUUID()
+    : Math.random().toString(36).slice(2) + Date.now().toString(36);
+}
+
 export function useOfflineSync(user) {
   const [pendingCount, setPendingCount] = useState(0);
   const [isSyncing, setIsSyncing] = useState(false);
@@ -29,35 +35,55 @@ export function useOfflineSync(user) {
 
     setIsSyncing(true);
     try {
-      // Deduplicate: for each exerciseId keep only the latest op (highest createdAt)
-      const latest = new Map();
-      for (const op of ops) {
-        const existing = latest.get(op.payload.exerciseId);
-        if (!existing || op.createdAt > existing.createdAt) {
-          latest.set(op.payload.exerciseId, op);
+      // Replay each op in creation order — atomic RPCs mean ordering is safe
+      const sorted = [...ops].sort((a, b) => a.createdAt - b.createdAt);
+
+      for (const op of sorted) {
+        let error;
+
+        if (op.type === "append_session") {
+          ({ error } = await supabase.rpc("append_session", {
+            p_exercise_id: op.payload.exerciseId,
+            p_session:     op.payload.session,
+            p_updated_at:  op.payload.updatedAt,
+          }));
+        } else if (op.type === "upsert_session") {
+          // Legacy op from before the RPC migration. The payload is a full
+          // sessions array snapshot — doing a full-array replace here would
+          // overwrite any sessions appended by another device since this op
+          // was enqueued. Instead: fetch current server state, then append
+          // only sessions that are missing from it.
+          const { data: current, error: fetchErr } = await supabase
+            .from("exercises")
+            .select("sessions")
+            .eq("id", op.payload.exerciseId)
+            .eq("user_id", user.id)
+            .single();
+
+          if (fetchErr) {
+            error = fetchErr;
+          } else {
+            const serverKeys = new Set(
+              (current?.sessions ?? []).map(s => `${s.date}:${s.weight}:${s.reps ?? ""}`)
+            );
+            const missing = op.payload.sessions.filter(
+              s => !serverKeys.has(`${s.date}:${s.weight}:${s.reps ?? ""}`)
+            );
+            for (const s of missing) {
+              const { error: appendErr } = await supabase.rpc("append_session", {
+                p_exercise_id: op.payload.exerciseId,
+                p_session:     s.id ? s : { ...s, id: genId() },
+                p_updated_at:  op.payload.updatedAt,
+              });
+              if (appendErr) { error = appendErr; break; }
+            }
+          }
         }
-      }
-
-      // Apply latest op per exercise, then dequeue all ops for that exercise
-      const byExercise = new Map();
-      for (const op of ops) {
-        const arr = byExercise.get(op.payload.exerciseId) || [];
-        arr.push(op);
-        byExercise.set(op.payload.exerciseId, arr);
-      }
-
-      for (const [exerciseId, exerciseOps] of byExercise) {
-        const latestOp = latest.get(exerciseId);
-        const { error } = await supabase
-          .from("exercises")
-          .update({ sessions: latestOp.payload.sessions, updated_at: latestOp.payload.updatedAt })
-          .eq("id", exerciseId)
-          .eq("user_id", user.id);
 
         if (!error) {
-          for (const op of exerciseOps) await dequeue(op.id);
+          await dequeue(op.id);
         } else {
-          console.error("[useOfflineSync] sync failed for", exerciseId, error);
+          console.error("[useOfflineSync] sync failed for op", op.id, error);
         }
       }
     } catch (err) {
