@@ -1,4 +1,4 @@
-const STATIC_CACHE = "liftlog-static-v1";
+const STATIC_CACHE = "liftlog-static-v2";
 const API_CACHE = "liftlog-api-v1";
 
 const PRECACHE_URLS = ["/", "/offline"];
@@ -43,9 +43,23 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // Next.js static assets → cacheFirst
+  // Next.js static assets — strategy depends on whether the URL is content-hashed.
+  // Production chunks have 8+ hex chars in the filename (e.g. "117-935b7e462b.js")
+  // and are immutable → cacheFirst is safe.
+  // Dev chunks (main-app.js, app/page.js, etc.) and HMR-versioned requests
+  // (?v=...) are mutable → bypass SW cache entirely so stale code never ships.
   if (url.pathname.startsWith("/_next/static/")) {
-    event.respondWith(cacheFirst(request, STATIC_CACHE));
+    if (url.search) {
+      // HMR versioned request (e.g. main-app.js?v=1234) — bypass SW
+      event.respondWith(fetch(request));
+      return;
+    }
+    const filename = url.pathname.split("/").pop();
+    event.respondWith(
+      /[0-9a-f]{8}/i.test(filename)
+        ? cacheFirst(request, STATIC_CACHE)   // content-hashed → safe to cache
+        : networkFirst(request, STATIC_CACHE) // unhashed dev chunk → always fresh
+    );
     return;
   }
 
