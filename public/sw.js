@@ -1,4 +1,4 @@
-const STATIC_CACHE = "liftlog-static-v2";
+const STATIC_CACHE = "liftlog-static-v3";
 const API_CACHE = "liftlog-api-v1";
 
 const PRECACHE_URLS = ["/", "/offline"];
@@ -78,11 +78,11 @@ self.addEventListener("fetch", (event) => {
 });
 
 async function cacheFirst(request, cacheName) {
-  const cached = await caches.match(request);
+  const cache = await caches.open(cacheName);
+  const cached = await cache.match(request);
   if (cached) return cached;
   const response = await fetch(request);
   if (response.ok) {
-    const cache = await caches.open(cacheName);
     cache.put(request, response.clone());
   }
   return response;
@@ -97,7 +97,8 @@ async function networkFirst(request, cacheName) {
     }
     return response;
   } catch {
-    const cached = await caches.match(request);
+    const cache = await caches.open(cacheName);
+    const cached = await cache.match(request);
     return cached || new Response("Offline", { status: 503 });
   }
 }

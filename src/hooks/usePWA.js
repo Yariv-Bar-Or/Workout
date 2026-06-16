@@ -16,6 +16,14 @@ export function usePWA() {
         .register("/sw.js")
         .then(() => setSwRegistered(true))
         .catch((err) => console.error("[usePWA] SW registration failed:", err));
+
+      // When a new SW takes over an existing controlled page (skipWaiting +
+      // clients.claim), reload so stale chunks served by the old SW are replaced.
+      // Guard against first-install where controller goes null → new SW (no prior page).
+      const hadController = !!navigator.serviceWorker.controller;
+      navigator.serviceWorker.addEventListener("controllerchange", () => {
+        if (hadController) window.location.reload();
+      });
     }
 
     // Detect standalone mode
