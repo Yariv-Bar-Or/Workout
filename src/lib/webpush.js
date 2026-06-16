@@ -1,11 +1,5 @@
 import webpush from "web-push";
 
-webpush.setVapidDetails(
-  process.env.VAPID_SUBJECT,
-  process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY,
-  process.env.VAPID_PRIVATE_KEY
-);
-
 const PUSH_PAYLOAD = JSON.stringify({
   title: "LiftLog ⏱️",
   body: "זמן המנוחה הסתיים — בוא נתחיל את הסט הבא!",
@@ -16,6 +10,11 @@ const PUSH_PAYLOAD = JSON.stringify({
 });
 
 export async function sendPushNotification(subscription, userId, supabase) {
+  webpush.setVapidDetails(
+    process.env.VAPID_SUBJECT,
+    process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY,
+    process.env.VAPID_PRIVATE_KEY
+  );
   try {
     await webpush.sendNotification(subscription, PUSH_PAYLOAD);
     return { success: true, cleaned: false };
