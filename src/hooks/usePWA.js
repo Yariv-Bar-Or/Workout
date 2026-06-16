@@ -22,7 +22,20 @@ export function usePWA() {
       // Guard against first-install where controller goes null → new SW (no prior page).
       const hadController = !!navigator.serviceWorker.controller;
       navigator.serviceWorker.addEventListener("controllerchange", () => {
-        if (hadController) window.location.reload();
+        if (!hadController) return;
+
+        // Defer the reload if a rest timer is actively counting down —
+        // reloading mid-countdown is disruptive even though timer state
+        // survives localStorage. Max timers are 240 s; ceiling is 5 min.
+        const endTime = parseInt(localStorage.getItem("timerEndTime") || "0", 10);
+        const remaining = endTime - Date.now();
+        const MAX_DEFER_MS = 5 * 60 * 1000;
+
+        if (remaining > 0) {
+          setTimeout(() => window.location.reload(), Math.min(remaining, MAX_DEFER_MS));
+        } else {
+          window.location.reload();
+        }
       });
     }
 
