@@ -21,7 +21,7 @@ export async function sendPushNotification(subscription, userId, supabase) {
   } catch (err) {
     if (err.statusCode === 410 || err.statusCode === 404) {
       if (userId && supabase) {
-        await supabase.from("push_subscriptions").delete().eq("user_id", userId).catch(console.error);
+        await supabase.from("push_subscriptions").delete().eq("user_id", userId).then(null, console.error);
       }
       return { success: false, cleaned: true };
     }

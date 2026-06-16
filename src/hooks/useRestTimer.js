@@ -46,7 +46,7 @@ export function useRestTimer(userId) {
       .from("active_timers")
       .delete()
       .eq("user_id", userIdRef.current)
-      .catch(console.error);
+      .then(null, console.error);
   }, []);
 
   const handleExpiry = useCallback(() => {
@@ -172,7 +172,7 @@ export function useRestTimer(userId) {
       supabase
         .from("active_timers")
         .upsert({ user_id: userIdRef.current, ends_at: endTime }, { onConflict: "user_id" })
-        .catch(console.error);
+        .then(null, console.error);
     }
   }, [startCountdown]);
 
