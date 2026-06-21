@@ -35,23 +35,29 @@ export default function MuscleAIModal({ muscleGroup, onClose }) {
       dir="rtl"
       onClick={onClose}
       style={{
-        position: "fixed", inset: 0, zIndex: 1000,
+        position: "fixed", inset: 0, zIndex: 1050,
         background: "rgba(0,0,0,0.75)",
         display: "flex", alignItems: "flex-end", justifyContent: "center",
       }}
     >
+      <style>{`
+        .muscle-ai-sheet::-webkit-scrollbar { display: none; }
+      `}</style>
       <div
         onClick={e => e.stopPropagation()}
+        className="muscle-ai-sheet"
         style={{
           width: "100%", maxWidth: 480,
           background: "#1a1a1a",
-          border: "1px solid rgba(255,255,255,0.1)",
+          borderTop: "1px solid rgba(255,255,255,0.1)",
           borderRadius: "24px 24px 0 0",
           padding: "28px 24px 40px",
           fontFamily: "system-ui, -apple-system, sans-serif",
           color: "#f0ede8",
           maxHeight: "85vh",
           overflowY: "auto",
+          scrollbarWidth: "none",
+          zIndex: 1051,
         }}
       >
         {/* Header */}

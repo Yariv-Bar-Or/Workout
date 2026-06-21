@@ -22,7 +22,7 @@ export default function VoiceButton({ isListening, isSupported, isParsing, liftU
         bottom: liftUp ? 72 : 0,
         left: 0,
         right: 0,
-        zIndex: 1000,
+        zIndex: 1010,
         height: 72,
         background: "rgba(10,10,10,0.96)",
         borderTop: isListening

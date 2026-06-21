@@ -10,7 +10,7 @@ export function InstallPrompt() {
 
   return (
     <div style={{
-      position: "fixed", bottom: "1rem", left: "1rem", zIndex: 999,
+      position: "fixed", bottom: "calc(72px + 1rem)", left: "1rem", zIndex: 999,
       maxWidth: 220,
       background: "#1a1a1a", border: "1px solid #333",
       borderRadius: 16, padding: "12px 14px",
@@ -46,7 +46,7 @@ export function OfflineBanner() {
 
   return (
     <div style={{
-      position: "fixed", top: 0, left: 0, right: 0, zIndex: 1000,
+      position: "fixed", top: 0, left: 0, right: 0, zIndex: 1060,
       background: "#b91c1c", color: "#fff",
       textAlign: "center", padding: "10px 16px",
       fontSize: 14, fontWeight: 600,
@@ -82,7 +82,7 @@ export function IOSInstallBanner() {
 
   return (
     <div style={{
-      position: "fixed", bottom: "1rem", left: "1rem", zIndex: 999,
+      position: "fixed", bottom: "calc(72px + 1rem)", left: "1rem", zIndex: 999,
       maxWidth: 248,
       background: "#1a1a1a", border: "1px solid #333",
       borderRadius: 16, padding: "12px 14px",

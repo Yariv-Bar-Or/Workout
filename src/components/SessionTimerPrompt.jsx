@@ -9,9 +9,9 @@ export default function SessionTimerPrompt({ onConfirm, onDismiss }) {
         style={{
           position: "fixed",
           inset: 0,
-          bottom: 72,
+          bottom: 0,
           background: "rgba(0,0,0,0.6)",
-          zIndex: 1002,
+          zIndex: 1022,
         }}
       />
 
@@ -25,7 +25,7 @@ export default function SessionTimerPrompt({ onConfirm, onDismiss }) {
         borderTop: "1px solid rgba(255,107,53,0.35)",
         borderRadius: "20px 20px 0 0",
         padding: 20,
-        zIndex: 1003,
+        zIndex: 1023,
         direction: "rtl",
       }}>
         <div style={{ color: "#f0ede8", fontSize: 18, fontWeight: 800, marginBottom: 8 }}>

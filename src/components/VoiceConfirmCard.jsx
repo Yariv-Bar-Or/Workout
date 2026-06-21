@@ -12,9 +12,9 @@ export default function VoiceConfirmCard({ parsed, onConfirm, onSkip, onCancelAl
         style={{
           position: "fixed",
           inset: 0,
-          bottom: 72,
+          bottom: 0,
           background: "rgba(0,0,0,0.6)",
-          zIndex: 1000,
+          zIndex: 1020,
         }}
       />
 
@@ -28,7 +28,7 @@ export default function VoiceConfirmCard({ parsed, onConfirm, onSkip, onCancelAl
         borderTop: "1px solid rgba(255,107,53,0.35)",
         borderRadius: "20px 20px 0 0",
         padding: 20,
-        zIndex: 1001,
+        zIndex: 1021,
         direction: "rtl",
       }}>
         <div style={{ color: "#888", fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, marginBottom: 10 }}>
