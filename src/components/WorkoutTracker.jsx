@@ -706,7 +706,10 @@ export default function WorkoutTracker({ user }) {
         <VoiceConfirmCard
           parsed={voiceLogger.pendingConfirm}
           onConfirm={voiceLogger.confirmLog}
-          onCancel={voiceLogger.cancelConfirm}
+          onSkip={voiceLogger.skipSet}
+          onCancelAll={voiceLogger.cancelConfirm}
+          currentIndex={voiceLogger.pendingQueue.indexOf(voiceLogger.pendingConfirm)}
+          totalSets={voiceLogger.pendingQueue.length}
         />
       )}
       {voiceLogger.parseError && !voiceLogger.pendingConfirm && (

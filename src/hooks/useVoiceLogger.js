@@ -4,7 +4,8 @@ import { useVoiceInput } from "./useVoiceInput";
 
 export function useVoiceLogger(exercises, updateExerciseWeight) {
   const voice = useVoiceInput();
-  const [pendingConfirm, setPendingConfirm] = useState(null);
+  const [pendingQueue, setPendingQueue] = useState([]);
+  const pendingConfirm = pendingQueue[0] ?? null;
   const [parseError, setParseError] = useState(null);
   const [isParsing, setIsParsing] = useState(false);
   const exercisesRef = useRef(exercises);
@@ -13,7 +14,7 @@ export function useVoiceLogger(exercises, updateExerciseWeight) {
   // Clear previous results when user starts a new recording
   useEffect(() => {
     if (voice.isListening) {
-      setPendingConfirm(null);
+      setPendingQueue([]);
       setParseError(null);
     }
   }, [voice.isListening]);
@@ -46,6 +47,7 @@ export function useVoiceLogger(exercises, updateExerciseWeight) {
         }
 
         const data = await res.json();
+
         if (data.error === "invalid_value") {
           setParseError(
             data.field === "weight"
@@ -54,15 +56,25 @@ export function useVoiceLogger(exercises, updateExerciseWeight) {
           );
           return;
         }
-        if (data.error || data.weight == null) throw new Error("parse failed");
-        const matched = exList.find(
-          (e) => e.name.toLowerCase() === data.exerciseName?.toLowerCase()
-        ) ?? null;
-        setPendingConfirm({
-          ...data,
-          exerciseId: matched?.id ?? null,
-          displayName: matched?.name ?? data.exerciseName,
-        });
+
+        if (data.error || !data.sets?.length) throw new Error("parse failed");
+
+        // Build queue of confirm cards, one per set
+        const queue = data.sets
+          .filter((s) => s.weight != null)
+          .map((s) => {
+            const matched = exList.find(
+              (e) => e.name.toLowerCase() === s.exerciseName?.toLowerCase()
+            ) ?? null;
+            return {
+              ...s,
+              exerciseId: matched?.id ?? null,
+              displayName: matched?.name ?? s.exerciseName,
+            };
+          });
+
+        if (!queue.length) throw new Error("parse failed");
+        setPendingQueue(queue);
       } catch {
         setParseError("לא הצלחתי לפרש את הקלט. נסה שנית.");
       } finally {
@@ -77,15 +89,19 @@ export function useVoiceLogger(exercises, updateExerciseWeight) {
     (exerciseId, weight, reps) => {
       if (!exerciseId || !weight) return;
       updateExerciseWeight(exerciseId, weight, reps ?? null, Date.now());
-      setPendingConfirm(null);
+      setPendingQueue((q) => q.slice(1));
       setParseError(null);
     },
     [updateExerciseWeight]
   );
 
   const cancelConfirm = useCallback(() => {
-    setPendingConfirm(null);
+    setPendingQueue([]);
     setParseError(null);
+  }, []);
+
+  const skipSet = useCallback(() => {
+    setPendingQueue((q) => q.slice(1));
   }, []);
 
   return {
@@ -97,8 +113,10 @@ export function useVoiceLogger(exercises, updateExerciseWeight) {
     isSupported: voice.isSupported,
     isParsing,
     pendingConfirm,
+    pendingQueue,
     parseError,
     confirmLog,
     cancelConfirm,
+    skipSet,
   };
 }

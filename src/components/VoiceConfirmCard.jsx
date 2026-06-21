@@ -1,14 +1,14 @@
 "use client";
 import { Check, X } from "lucide-react";
 
-export default function VoiceConfirmCard({ parsed, onConfirm, onCancel }) {
+export default function VoiceConfirmCard({ parsed, onConfirm, onSkip, onCancelAll, currentIndex, totalSets }) {
   const canConfirm = !!parsed.exerciseId && parsed.weight > 0;
 
   return (
     <>
       {/* Backdrop */}
       <div
-        onClick={onCancel}
+        onClick={onCancelAll}
         style={{
           position: "fixed",
           inset: 0,
@@ -35,6 +35,12 @@ export default function VoiceConfirmCard({ parsed, onConfirm, onCancel }) {
           אישור סט
         </div>
 
+        {totalSets > 1 && (
+          <div style={{ color: "#f97316", fontSize: 12, fontWeight: 700, marginBottom: 10 }}>
+            סט {currentIndex + 1} מתוך {totalSets}
+          </div>
+        )}
+
         <div style={{ marginBottom: 16 }}>
           <div style={{ color: "#f0ede8", fontSize: 17, fontWeight: 700, marginBottom: 6 }}>
             {parsed.displayName}
@@ -52,34 +58,50 @@ export default function VoiceConfirmCard({ parsed, onConfirm, onCancel }) {
           )}
         </div>
 
-        <div style={{ display: "flex", gap: 10 }}>
-          <button
-            onClick={() => onConfirm(parsed.exerciseId, parsed.weight, parsed.reps)}
-            disabled={!canConfirm}
-            style={{
-              flex: 1, height: 46, borderRadius: 12, border: "none",
-              background: canConfirm ? "#22c55e" : "#2a2a2a",
-              color: canConfirm ? "#fff" : "#555",
-              fontSize: 15, fontWeight: 700,
-              cursor: canConfirm ? "pointer" : "not-allowed",
-              display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
-            }}
-          >
-            <Check size={18} /> שמור
-          </button>
-          <button
-            onClick={onCancel}
-            style={{
-              flex: 1, height: 46, borderRadius: 12,
-              border: "1px solid rgba(255,255,255,0.1)",
-              background: "transparent", color: "#888",
-              fontSize: 15, fontWeight: 700, cursor: "pointer",
-              display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
-            }}
-          >
-            <X size={18} /> ביטול
-          </button>
-        </div>
+          <div style={{ display: "flex", gap: 10, flexDirection: "column" }}>
+            <button
+              onClick={() => onConfirm(parsed.exerciseId, parsed.weight, parsed.reps)}
+              disabled={!canConfirm}
+              style={{
+                width: "100%", height: 46, borderRadius: 12, border: "none",
+                background: canConfirm ? "#22c55e" : "#2a2a2a",
+                color: canConfirm ? "#fff" : "#555",
+                fontSize: 15, fontWeight: 700,
+                cursor: canConfirm ? "pointer" : "not-allowed",
+                display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+              }}
+            >
+              <Check size={18} /> שמור
+            </button>
+            <div style={{ display: "flex", gap: 10 }}>
+              {totalSets > 1 && (
+                <button
+                  onClick={onSkip}
+                  style={{
+                    flex: 1, height: 46, borderRadius: 12,
+                    border: "1px solid rgba(255,165,0,0.3)",
+                    background: "transparent", color: "#f97316",
+                    fontSize: 15, fontWeight: 700, cursor: "pointer",
+                    display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+                  }}
+                >
+                  דלג
+                </button>
+              )}
+              <button
+                onClick={onCancelAll}
+                style={{
+                  flex: 1, height: 46, borderRadius: 12,
+                  border: "1px solid rgba(255,255,255,0.1)",
+                  background: "transparent", color: "#888",
+                  fontSize: 15, fontWeight: 700, cursor: "pointer",
+                  display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+                }}
+              >
+                <X size={18} /> בטל הכל
+              </button>
+            </div>
+          </div>
       </div>
     </>
   );
