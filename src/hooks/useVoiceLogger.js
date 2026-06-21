@@ -35,6 +35,16 @@ export function useVoiceLogger(exercises, updateExerciseWeight) {
             exercises: exList.map((e) => ({ id: e.id, name: e.name, category: e.category })),
           }),
         });
+
+        if (res.status === 401) {
+          setParseError("פג תוקף החיבור — יש להתחבר מחדש.");
+          return;
+        }
+        if (!res.ok) {
+          setParseError("שגיאת שרת, נסה שנית.");
+          return;
+        }
+
         const data = await res.json();
         if (data.error === "invalid_value") {
           setParseError(
